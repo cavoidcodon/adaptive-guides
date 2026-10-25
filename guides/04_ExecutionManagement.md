@@ -6,7 +6,7 @@
 >
 > **Document type:** training material.
 >
-> **Author:** Hieu Do Minh
+> **Author:** Hieu Do Minh/Claude
 
 ## About This Guide
 

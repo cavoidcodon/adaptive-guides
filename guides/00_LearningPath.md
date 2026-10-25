@@ -6,7 +6,7 @@
 >
 > **Document type:** training material.
 >
-> **Author:** Hieu Do Minh
+> **Author:** Hieu Do Minh/Claude
 >
 > **Version:** 1.0 (2026-10-25)
 >

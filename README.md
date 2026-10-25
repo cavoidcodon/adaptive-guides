@@ -2,7 +2,7 @@
 
 A series of training guides for engineers who are new to the AUTOSAR Adaptive Platform (AP). Each guide explains one functional cluster or topic in plain language: what it does, how it works, how to configure it and how to use its C++ API. The guides are based on the official AUTOSAR specifications, release **R25-11**, and on reputable public sources.
 
-> **Author:** Hieu Do Minh
+> **Author:** Hieu Do Minh/Claude
 
 ## Who These Guides Are For
 
