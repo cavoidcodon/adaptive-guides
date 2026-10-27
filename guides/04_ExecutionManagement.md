@@ -2,11 +2,15 @@
 
 <!-- markdownlint-disable MD013 MD033 -->
 
-> **Source specification:** *Specification of Execution Management*, AUTOSAR Adaptive Platform **R25-11**.
+> **Source specification:** *Specification of Execution Management* (`AUTOSAR_AP_SWS_ExecutionManagement`), AUTOSAR Adaptive Platform **R25-11**. Also based on *Specification of Manifest* (`AUTOSAR_AP_TPS_ManifestSpecification`), *Specification of Adaptive Platform Core* (`AUTOSAR_AP_SWS_Core`) and *Specification of Operating System Interface* (`AUTOSAR_AP_SWS_OperatingSystemInterface`), Adaptive Platform R25-11, and on *Safety Requirements for AUTOSAR Adaptive Platform and AUTOSAR Classic Platform* (`AUTOSAR_FO_RS_Safety`, Foundation R25-11).
 >
 > **Document type:** training material.
 >
 > **Author:** Hieu Do Minh/Claude
+>
+> **Version:** 1.0 (draft, pending review)
+>
+> **Part of the series:** [AUTOSAR Adaptive Platform Training Guides](00_LearningPath.md). Previous: [03 `ara::core` and General Conventions](03_CoreAndGeneral.md). Next: 05 State Management (`05_StateManagement.md`, planned).
 
 ## About This Guide
 
@@ -18,7 +22,7 @@ Execution Management (EM) is the functional cluster of the AUTOSAR Adaptive Plat
 - **Integrators** who write Execution Manifests and Machine Manifests and who debug startup problems.
 - **Platform developers**, for example of State Management, who use the `ara::exec` API.
 
-Assumed background: modern C++, plus basic Linux/POSIX knowledge (processes, signals, process creation, scheduling). You do not need prior AUTOSAR Adaptive knowledge. AUTOSAR Classic knowledge helps but is optional.
+Assumed background: modern C++, plus basic Linux/POSIX knowledge (processes, signals, process creation, scheduling). You do not need prior AUTOSAR Adaptive knowledge. AUTOSAR Classic knowledge helps but is optional. The guide can be read on its own, but three guides of this series make it easier: [01 Adaptive Platform Overview and Architecture](01_PlatformOverview.md) for the big picture, [02 Manifests and Methodology](02_Manifests.md) for how manifests are modeled, and [03 `ara::core` and General Conventions](03_CoreAndGeneral.md) for initialization and error handling.
 
 ### Learning Objectives
 
@@ -30,12 +34,12 @@ After working through this guide you will be able to:
 4. Predict what EM does during a Function Group State transition, including timeouts, crashes and cancellations.
 5. Describe how EM interacts with State Management, Platform Health Management, Log and Trace, the operating system, IAM and the Intrusion Detection System Manager.
 6. Use `ara::exec::ExecutionClient` and `ara::exec::StateClient` correctly in C++ code.
-7. Configure resource limits, scheduling and trusted-platform behavior through manifests.
+7. Configure EM through the Execution Manifest and the Machine Manifest: know what is mandatory, what each setting means and what happens when it is absent.
 8. Use EM's log messages to troubleshoot real systems.
 
 ### How to Read This Guide
 
-The chapters build on each other. Chapters 1 and 2 introduce the concepts. Chapters 3 to 12 explain how EM works. Chapter 13 covers the API. Chapters 14 to 16 are practical, and the appendices are for quick reference.
+The chapters build on each other. Chapters 1 and 2 introduce the concepts. Chapter 3 places EM in the platform, and Chapter 4 gives the big picture of its configuration. Chapters 5 to 12 explain how EM works. Chapter 13 lists every configuration setting in detail, and Chapter 14 covers the API. Chapters 15 to 17 are practical, and the appendices are for quick reference.
 
 | Convention | Meaning |
 | --- | --- |
@@ -48,27 +52,27 @@ The chapters build on each other. Chapters 1 and 2 introduce the concepts. Chapt
 
 ### The Running Example
 
-Most examples in this guide use the same small, invented system so that the concepts can build on each other. A high-performance ECU called **HPC** runs an ADAS feature.
+All guides of the series use the same invented system, so that the concepts can build on each other. A high-performance ECU called **`HPC`** runs an ADAS feature. [Guide 00, Chapter 6](00_LearningPath.md#6-the-running-example-the-hpc-reference-system) defines the complete example; this section recaps the part that EM needs.
 
-- **Function Group `MachineFG`** (controls the machine lifecycle) has the states `Off`, `Startup`, `Driving`, `Shutdown`, `Restart` and `Verify`. `Driving` is a project-specific state. The others are mandatory.
-- **Function Group `ADAS`** (controls the ADAS feature) has the states `Off`, `Normal` and `Degraded`.
+- **Function Group `MachineFG`** (controls the machine lifecycle) has the states `Off`, `Startup`, `Driving`, `Shutdown`, `Restart` and `Verify`. `Driving` is a project-specific state. The others are mandatory. `MachineFG` belongs to the Software Cluster `HpcPlatformCore`.
+- **Function Group `ADAS`** (controls the ADAS feature) has the states `Off`, `Normal`, `Degraded` and `Verify`. Every Function Group needs `Verify` ([Section 7.2](#72-function-groups-and-function-group-states)); State Management uses it while an update of the Software Cluster `AdasCluster` is activated. No process of this guide runs in `ADAS.Verify`; guide 13 *Update and Configuration Management* (`13_UpdateAndConfigManagement.md`, planned) decides which processes do.
 
 > **Note:** The example deliberately avoids naming a state "Running". The word *Running* already has two other meanings in EM (see [Section 2.3](#23-states)).
 
-| Process | Function Group | Referenced states | Kind | Execution Dependencies |
-| --- | --- | --- | --- | --- |
-| `StateManager` | MachineFG | Startup, Driving, Shutdown, Restart, Verify | Reporting; the State Management daemon (`functionClusterAffiliation = STATE_MANAGEMENT`) | none |
-| `PlatformHealth` | MachineFG | Startup, Driving, Shutdown, Restart, Verify | Reporting; the Platform Health Management daemon | none |
-| `PowerControl` | MachineFG | Shutdown, Restart | Reporting; project-specific process that actually powers off or reboots the OS | none |
-| `Storage` | ADAS | Normal, Degraded (one shared startup configuration) | Reporting; a storage service | none |
-| `CameraDriver` | ADAS | Normal, Degraded (one shared startup configuration) | Reporting | none |
-| `CalibrationCheck` | ADAS | Normal | Reporting, **self-terminating** (runs once, then exits) | `Storage` must be *Running* |
-| `LegacyLogger` | ADAS | Normal, Degraded (one shared startup configuration) | **Non-reporting**; third-party binary that cannot be modified | none |
-| `LoggerCompanion` | ADAS | Normal, Degraded (one startup configuration *per state*) | Reporting; **companion** of `LegacyLogger` | `LegacyLogger` must be *Running* |
-| `Fusion` | ADAS | Normal | Reporting; the full-featured sensor fusion | `CalibrationCheck` must be *Terminated*, `LoggerCompanion` must be *Running* |
-| `FusionLite` | ADAS | Degraded | Reporting; the reduced-function fallback | `LoggerCompanion` must be *Running* |
+| Process | Executable | Function Group | Referenced states | Kind | Execution Dependencies |
+| --- | --- | --- | --- | --- | --- |
+| `StateManager` | `state_manager` | MachineFG | Startup, Driving, Shutdown, Restart, Verify | Reporting; the State Management daemon (`functionClusterAffiliation = STATE_MANAGEMENT`) | none |
+| `PlatformHealth` | `platform_health` | MachineFG | Startup, Driving, Shutdown, Restart, Verify | Reporting; the Platform Health Management daemon | none |
+| `PowerControl` | `power_control` | MachineFG | Shutdown, Restart | Reporting; project-specific process that actually powers off or reboots the OS | none |
+| `Storage` | `storage` | ADAS | Normal, Degraded (one shared startup configuration) | Reporting; a storage service | none |
+| `CameraDriver` | `camera_driver` | ADAS | Normal, Degraded (one shared startup configuration) | Reporting | none |
+| `CalibrationCheck` | `calib_check` | ADAS | Normal | Reporting, **self-terminating** (runs once, then exits) | `Storage` must be *Running* |
+| `LegacyLogger` | `legacy_logger` | ADAS | Normal, Degraded (one shared startup configuration) | **Non-reporting**; third-party binary that cannot be modified | none |
+| `LoggerCompanion` | `logger_companion` | ADAS | Normal, Degraded (one startup configuration *per state*) | Reporting; **companion** of `LegacyLogger` | `LegacyLogger` must be *Running* |
+| `Fusion` | `fusion` | ADAS | Normal | Reporting; the full-featured sensor fusion | `CalibrationCheck` must be *Terminated*, `LoggerCompanion` must be *Running* |
+| `FusionLite` | `fusion_lite` | ADAS | Degraded | Reporting; the reduced-function fallback | `LoggerCompanion` must be *Running* |
 
-The table omits other platform daemons, such as Communication Management and Diagnostic Management, for brevity. Do not worry if some of the terms in the table are new: they are all explained in the following chapters.
+The first three processes belong to `HpcPlatformCore`, the seven ADAS processes to `AdasCluster`. The table omits other platform daemons, such as Communication Management and Diagnostic Management, for brevity. Do not worry if some of the terms in the table are new: they are all explained in the following chapters. [Section 13.11](#1311-the-running-example-complete-configuration) shows the complete EM configuration of the example.
 
 ## Table of Contents
 
@@ -97,12 +101,9 @@ The table omits other platform daemons, such as Communication Management and Dia
     - [3.3 Interfaces Required by EM](#33-interfaces-required-by-em)
     - [3.4 Interaction Map](#34-interaction-map)
     - [3.5 Where Do State Requests Come From?](#35-where-do-state-requests-come-from)
-  - [4. Configuration Inputs: Manifests](#4-configuration-inputs-manifests)
-    - [4.1 Lifecycle of an Executable](#41-lifecycle-of-an-executable)
-    - [4.2 Manifest Types](#42-manifest-types)
-    - [4.3 The Meta-Model Elements EM Reads](#43-the-meta-model-elements-em-reads)
-    - [4.4 Configuration Parameters and Their Effect](#44-configuration-parameters-and-their-effect)
-    - [4.5 The Running Example as a Manifest](#45-the-running-example-as-a-manifest)
+  - [4. Configuration Overview](#4-configuration-overview)
+    - [4.1 Where the Configuration Lives](#41-where-the-configuration-lives)
+    - [4.2 How the Elements Relate](#42-how-the-elements-relate)
   - [5. Process Lifecycle Management](#5-process-lifecycle-management)
     - [5.1 Two Views of a Process: Execution State and Process State](#51-two-views-of-a-process-execution-state-and-process-state)
     - [5.2 Starting a Process](#52-starting-a-process)
@@ -165,47 +166,59 @@ The table omits other platform daemons, such as Communication Management and Dia
     - [12.4 Security Events](#124-security-events)
     - [12.5 Identity and Access Management Support](#125-identity-and-access-management-support)
     - [12.6 Function Group Access Control](#126-function-group-access-control)
-  - [13. API Reference and Usage Guide (ara::exec)](#13-api-reference-and-usage-guide-araexec)
-    - [13.1 API Overview](#131-api-overview)
-    - [13.2 ExecutionState](#132-executionstate)
-    - [13.3 ExecutionClient](#133-executionclient)
+  - [13. Configuration Reference: What to Configure](#13-configuration-reference-what-to-configure)
+    - [13.1 Minimal Configuration](#131-minimal-configuration)
+    - [13.2 Executable](#132-executable)
+    - [13.3 Process](#133-process)
+    - [13.4 StateDependentStartupConfig and ExecutionDependency](#134-statedependentstartupconfig-and-executiondependency)
+    - [13.5 StartupConfig](#135-startupconfig)
+    - [13.6 Machine](#136-machine)
+    - [13.7 ResourceGroup](#137-resourcegroup)
+    - [13.8 Core Affinity: ProcessToMachineMapping and ProcessDesignToMachineDesignMapping](#138-core-affinity-processtomachinemapping-and-processdesigntomachinedesignmapping)
+    - [13.9 Function Groups and Software Clusters](#139-function-groups-and-software-clusters)
+    - [13.10 State Management Access: StateClientInterface and FunctionGroupPortMapping](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)
+    - [13.11 The Running Example: Complete Configuration](#1311-the-running-example-complete-configuration)
+  - [14. API Reference and Usage Guide (ara::exec)](#14-api-reference-and-usage-guide-araexec)
+    - [14.1 API Overview](#141-api-overview)
+    - [14.2 ExecutionState](#142-executionstate)
+    - [14.3 ExecutionClient](#143-executionclient)
       - [ExecutionClient: Create and Constructor](#executionclient-create-and-constructor)
       - [ReportExecutionState](#reportexecutionstate)
       - [Special member functions](#special-member-functions)
       - [ExecutionClient: Rules](#executionclient-rules)
       - [Example: a minimal reporting application](#example-a-minimal-reporting-application)
-    - [13.4 FunctionGroup and FunctionGroupState](#134-functiongroup-and-functiongroupstate)
-    - [13.5 StateClient](#135-stateclient)
+    - [14.4 FunctionGroup and FunctionGroupState](#144-functiongroup-and-functiongroupstate)
+    - [14.5 StateClient](#145-stateclient)
       - [StateClient: Create and Constructor](#stateclient-create-and-constructor)
       - [SetState](#setstate)
       - [GetInitialMachineStateTransitionResult](#getinitialmachinestatetransitionresult)
       - [GetExecutionError](#getexecutionerror)
       - [StateClient: Rules](#stateclient-rules)
       - [Example: State Management side](#example-state-management-side)
-    - [13.6 ExecutionErrorEvent and ExecutionError](#136-executionerrorevent-and-executionerror)
-    - [13.7 Error Handling Types](#137-error-handling-types)
-    - [13.8 Thread Safety and Exception Safety Summary](#138-thread-safety-and-exception-safety-summary)
-    - [13.9 Common API Pitfalls](#139-common-api-pitfalls)
-  - [14. Logging, Tracing and Reporting](#14-logging-tracing-and-reporting)
-    - [14.1 Reporting Channels](#141-reporting-channels)
-    - [14.2 Process Lifecycle Trace Messages](#142-process-lifecycle-trace-messages)
-    - [14.3 Error Log Messages](#143-error-log-messages)
-    - [14.4 Violation Messages](#144-violation-messages)
-    - [14.5 Using EM Traces in Practice](#145-using-em-traces-in-practice)
-  - [15. End-to-End Walkthrough: A Day in the Life of an ECU](#15-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu)
-    - [15.1 Phase 1: Power On to Startup](#151-phase-1-power-on-to-startup)
-    - [15.2 Phase 2: Bringing Up the Vehicle Function](#152-phase-2-bringing-up-the-vehicle-function)
-    - [15.3 Phase 3: A Process Crashes](#153-phase-3-a-process-crashes)
-    - [15.4 Phase 4: Recovery to Degraded](#154-phase-4-recovery-to-degraded)
-    - [15.5 Phase 5: Shutdown](#155-phase-5-shutdown)
-    - [15.6 Process State Overview](#156-process-state-overview)
-  - [16. Best Practices, Pitfalls and Troubleshooting](#16-best-practices-pitfalls-and-troubleshooting)
-    - [16.1 Checklist for Application Developers](#161-checklist-for-application-developers)
-    - [16.2 Checklist for Integrators](#162-checklist-for-integrators)
-    - [16.3 Troubleshooting Guide](#163-troubleshooting-guide)
-  - [17. Summary and Self-Check Quiz](#17-summary-and-self-check-quiz)
-    - [17.1 Summary](#171-summary)
-    - [17.2 Self-Check Quiz](#172-self-check-quiz)
+    - [14.6 ExecutionErrorEvent and ExecutionError](#146-executionerrorevent-and-executionerror)
+    - [14.7 Error Handling Types](#147-error-handling-types)
+    - [14.8 Thread Safety and Exception Safety Summary](#148-thread-safety-and-exception-safety-summary)
+    - [14.9 Common API Pitfalls](#149-common-api-pitfalls)
+  - [15. Logging, Tracing and Reporting](#15-logging-tracing-and-reporting)
+    - [15.1 Reporting Channels](#151-reporting-channels)
+    - [15.2 Process Lifecycle Trace Messages](#152-process-lifecycle-trace-messages)
+    - [15.3 Error Log Messages](#153-error-log-messages)
+    - [15.4 Violation Messages](#154-violation-messages)
+    - [15.5 Using EM Traces in Practice](#155-using-em-traces-in-practice)
+  - [16. End-to-End Walkthrough: A Day in the Life of an ECU](#16-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu)
+    - [16.1 Phase 1: Power On to Startup](#161-phase-1-power-on-to-startup)
+    - [16.2 Phase 2: Bringing Up the Vehicle Function](#162-phase-2-bringing-up-the-vehicle-function)
+    - [16.3 Phase 3: A Process Crashes](#163-phase-3-a-process-crashes)
+    - [16.4 Phase 4: Recovery to Degraded](#164-phase-4-recovery-to-degraded)
+    - [16.5 Phase 5: Shutdown](#165-phase-5-shutdown)
+    - [16.6 Process State Overview](#166-process-state-overview)
+  - [17. Best Practices, Pitfalls and Troubleshooting](#17-best-practices-pitfalls-and-troubleshooting)
+    - [17.1 Checklist for Application Developers](#171-checklist-for-application-developers)
+    - [17.2 Checklist for Integrators](#172-checklist-for-integrators)
+    - [17.3 Troubleshooting Guide](#173-troubleshooting-guide)
+  - [18. Summary and Self-Check Quiz](#18-summary-and-self-check-quiz)
+    - [18.1 Summary](#181-summary)
+    - [18.2 Self-Check Quiz](#182-self-check-quiz)
   - [Appendix A. Glossary and Acronyms](#appendix-a-glossary-and-acronyms)
     - [A.1 Acronyms](#a1-acronyms)
     - [A.2 Glossary](#a2-glossary)
@@ -217,6 +230,7 @@ The table omits other platform daemons, such as Communication Management and Dia
     - [B.5 DLT Message IDs at a Glance](#b5-dlt-message-ids-at-a-glance)
   - [Appendix C. Spec Traceability](#appendix-c-spec-traceability)
   - [Appendix D. Notable Changes in Recent Releases](#appendix-d-notable-changes-in-recent-releases)
+  - [Appendix E. References](#appendix-e-references)
 
 ---
 
@@ -238,7 +252,7 @@ The table omits other platform daemons, such as Communication Management and Dia
 | Start and stop ordering | Respects the Execution Dependencies declared between processes. | [Chapter 6](#6-execution-dependencies-startup-and-shutdown-ordering) |
 | OS configuration per process | Sets scheduling policy and priority, core affinity, CPU and memory limits, signal mask, command-line arguments and environment variables. | [Chapters 5](#5-process-lifecycle-management) and [11](#11-resource-management) |
 | Security | Checks the integrity and authenticity of executables and manifests (Trusted Platform), associates processes with an identity for IAM, and restricts creation of child processes. | [Chapter 12](#12-security-trusted-platform-and-iam) |
-| Reporting | Emits standardized log, trace and violation messages and a security event. | [Chapter 14](#14-logging-tracing-and-reporting) |
+| Reporting | Emits standardized log, trace and violation messages and a security event. | [Chapter 15](#15-logging-tracing-and-reporting) |
 
 Two properties shape how EM behaves:
 
@@ -299,7 +313,7 @@ If you know **AUTOSAR Classic**, this rough mapping helps:
 
 ### 1.4 EM and the AUTOSAR Runtime for Adaptive (ARA)
 
-The set of programming interfaces available to Adaptive Applications is called **ARA** (AUTOSAR Runtime for Adaptive). EM's part of ARA is the C++ namespace `ara::exec` (see [Chapter 13](#13-api-reference-and-usage-guide-araexec)).
+The set of programming interfaces available to Adaptive Applications is called **ARA** (AUTOSAR Runtime for Adaptive). [Guide 01](01_PlatformOverview.md) places ARA in the architecture of the platform, and [guide 03](03_CoreAndGeneral.md) covers its common base, `ara::core`. EM's part of ARA is the C++ namespace `ara::exec` (see [Chapter 14](#14-api-reference-and-usage-guide-araexec)).
 
 - EM itself is a process running on a POSIX-compliant operating system.
 - EM starts the processes of *all* functional clusters, platform services and user applications. Therefore EM has no standardized dependencies on other functional clusters: nothing needs to run before EM.
@@ -338,7 +352,7 @@ flowchart LR
 
 ### 2.1 Software Units: From Application to OS Process
 
-**Adaptive Application.** *In plain words:* a piece of software that delivers a function, for example "lane keeping". *Precisely:* it consists of one or more Executables. Executables of the same application may even be deployed to different machines, for example one high-performance machine and one high-safety machine.
+**Adaptive Application.** *In plain words:* a piece of software that delivers a function, for example "lane keeping". *Precisely:* it consists of one or more Executables. It uses only ARA and the POSIX profile PSE51, so that it can be deployed on any Adaptive Platform. Executables of the same application may even be deployed to different machines, for example one high-performance machine and one high-safety machine.
 
 **Executable.** *In plain words:* a program file that you can run. *Precisely:* a software unit that is part of an application and has exactly one entry point, the `main` function ([SWS_OSI_01001]). *Example:* the binary `fusion`.
 
@@ -352,20 +366,20 @@ flowchart LR
 
 ### 2.2 Manifests
 
-**Manifest.** A standardized configuration description, written in the AUTOSAR XML format (ARXML), that tells the platform how to deploy and run software. EM uses the following kinds:
+**Manifest.** A standardized configuration description, written in the AUTOSAR XML format (ARXML), that tells the platform how to deploy and run software. [Guide 02](02_Manifests.md#23-the-kinds-of-manifest) explains all kinds of manifest and how they are modeled. For EM, four of them matter:
 
 - **Execution Manifest:** belongs to an Executable. Describes how its processes are started: the states in which they run, arguments, environment, scheduling, resource group, dependencies and timeouts.
 - **Machine Manifest:** belongs to a machine. Holds machine-wide configuration, such as default timeouts, machine-wide environment variables, resource groups and the trusted-platform mode.
-- **Service Instance Manifest:** describes communication deployment for Communication Management. EM does *not* use it for configuration. In `strictMode`, however, EM checks its integrity (see [Chapter 12](#12-security-trusted-platform-and-iam)).
+- **Service Instance Manifest:** the configuration of how service-oriented communication is deployed on the network. EM does *not* use it for configuration. In `strictMode`, however, EM checks its integrity (see [Chapter 12](#12-security-trusted-platform-and-iam)).
 - **Processed Manifest:** the manifests converted into a platform-specific format that is quick to read at startup. This is what EM actually reads at run time.
 
-[Chapter 4](#4-configuration-inputs-manifests) explains manifests in detail.
+[Chapter 4](#4-configuration-overview) shows which elements EM reads, and [Chapter 13](#13-configuration-reference-what-to-configure) explains every setting.
 
 ### 2.3 States
 
 **Function Group (FG).** *In plain words:* a named group of processes that are switched on and off together. *Precisely:* each Function Group has its own set of processes and its own set of states. *Example:* `ADAS`.
 
-**Function Group State.** *In plain words:* one named "mode" of a Function Group, saying exactly which processes run (and with which configuration). *Precisely:* modelled as a `ModeDeclaration`. Every Function Group has a mandatory `Off` state, in which no processes run. *Example:* `ADAS.Normal`, `ADAS.Degraded`, `ADAS.Off`.
+**Function Group State.** *In plain words:* one named "mode" of a Function Group, saying exactly which processes run (and with which configuration). *Precisely:* modelled as a `ModeDeclaration`. Every Function Group has a mandatory `Off` state, in which no processes run, and a mandatory `Verify` state. *Example:* `ADAS.Normal`, `ADAS.Degraded`, `ADAS.Off`.
 
 **MachineFG and Machine State.** `MachineFG` is the special Function Group whose states control the lifecycle of the whole machine. Its states are called **Machine States**. The mandatory ones are `Off`, `Startup`, `Shutdown`, `Restart` and `Verify`. Projects add their own states, such as `Driving`.
 
@@ -395,7 +409,7 @@ Processes differ in two independent ways: whether they *report* their Execution 
 
 | Flavor | How it is configured | Behavior | Typical use |
 | --- | --- | --- | --- |
-| Reporting Process | `Executable.reportingBehavior = reportsExecutionState`, or the attribute is omitted | Must report `kRunning` using `ara::exec::ExecutionClient`. | The normal case: all software written for the Adaptive Platform |
+| Reporting Process | `Executable.reportingBehavior = reportsExecutionState`, or the attribute is omitted ([TPS_MANI_01279]) | Must report `kRunning` using `ara::exec::ExecutionClient`. | The normal case: all software written for the Adaptive Platform |
 | Non-reporting Process | `Executable.reportingBehavior = doesNotReportExecutionState` | Considered *Running* immediately after creation. It must not use `ExecutionClient`. | Legacy or third-party binaries that cannot be modified, and development tools |
 | Companion Process | A normal reporting process with a special role | Checks, by a project-specific method, whether a non-reporting process is really ready, and only then reports `kRunning`. | Making dependencies on non-reporting processes meaningful |
 | Self-terminating Process | `StartupConfig.terminationBehavior = processIsSelfTerminating` | May exit with `EXIT_SUCCESS` on its own after its job is done, or wait for EM's `SIGTERM`. | One-shot jobs such as consistency checks, calibration and data migration |
@@ -427,7 +441,7 @@ An Unexpected Termination may also be an Abnormal Termination. For error handlin
 
 **Execution Dependency.** A declaration in the manifest such as "start `B` only after `A` has reached the Process State *Running*", or "...after `A` has *Terminated*". It controls the *order* of start and termination. It does *not* control *whether* a process is started (see [Chapter 6](#6-execution-dependencies-startup-and-shutdown-ordering)).
 
-**StartupConfig and StateDependentStartupConfig.** A `StartupConfig` is a reusable set of start parameters, such as arguments, environment, scheduling, timeouts and termination behavior. A `StateDependentStartupConfig` connects a process with a `StartupConfig` *for a set of Function Group States*, and adds dependencies and resource settings (see [Section 4.3](#43-the-meta-model-elements-em-reads)).
+**StartupConfig and StateDependentStartupConfig.** A `StartupConfig` is a reusable set of start parameters, such as arguments, environment, scheduling, timeouts and termination behavior. A `StateDependentStartupConfig` connects a process with a `StartupConfig` *for a set of Function Group States*, and adds dependencies and resource settings (see [Section 4.2](#42-how-the-elements-relate) and [Section 13.4](#134-statedependentstartupconfig-and-executiondependency)).
 
 **State Management (SM).** The functional cluster that decides which Function Group States the machine should be in, based on project-specific logic and vehicle-wide events. It requests transitions through `ara::exec::StateClient`. SM is itself a process started by EM.
 
@@ -496,7 +510,7 @@ EM provides C++ library interfaces only. It defines no `ara::com` service interf
 
 | Provider | Interface | Purpose |
 | --- | --- | --- |
-| Log and Trace | `Logger` | EM logs its standardized, non-verbose (modelled) DLT messages (see [Chapter 14](#14-logging-tracing-and-reporting)). |
+| Log and Trace | `Logger` | EM logs its standardized, non-verbose (modelled) DLT messages (see [Chapter 15](#15-logging-tracing-and-reporting)). |
 | Platform Health Management | `SupervisedEntity` (`ReportCheckpoint`) | EM reports checkpoints so that PHM can supervise EM's own process or processes. |
 | Operating System | "Multi-Process System Interface". This is informative and implementation-specific, for example *set process configuration*, *start process*, *terminate process*. | Create and configure processes, terminate them, and observe their exit status. |
 
@@ -532,6 +546,8 @@ flowchart LR
 | Identity and Access Management | EM → IAM | Implementation-defined | Association between a Modelled Process and the identity of its OS process ([SWS_EM_02400]) | No |
 | Update and Configuration Management | UCM → EM (indirect) | Software installation | New executables and Processed Manifests. Manifests may be converted on the machine at installation time. | No (indirect) |
 
+Each partner has its own guide in this series: the operating system interface in [guide 01, Chapter 7](01_PlatformOverview.md#7-the-operating-system-interface); State Management in guide 05 (`05_StateManagement.md`, planned); Platform Health Management in guide 06 (`06_PlatformHealthManagement.md`, planned); Log and Trace in guide 10 (`10_LogAndTrace.md`, planned); Update and Configuration Management in guide 13 (`13_UpdateAndConfigManagement.md`, planned); Identity and Access Management in guide 15 (`15_IdentityAndAccessManagement.md`, planned); and the Intrusion Detection System Manager in guide 16 (`16_IDSM_Firewall.md`, planned).
+
 > **Note:** Communication Management does not appear in the table as an EM partner, although EM starts the CM daemon like any other daemon. Applications use CM's **service discovery**, not EM, to wait until another application's service is available (see [Section 6.6](#66-prefer-service-discovery-for-applications)).
 
 ### 3.5 Where Do State Requests Come From?
@@ -557,45 +573,39 @@ flowchart LR
 
 ---
 
-## 4. Configuration Inputs: Manifests
+## 4. Configuration Overview
 
-> **Why this matters:** EM has no built-in knowledge of your system. Everything it does, which processes to start, in which order, with which priorities and limits, comes from manifests. If EM "does something strange", the answer is usually in the manifest.
+> **Why this matters:** EM has no built-in knowledge of your system. Everything it does, which processes to start, in which order, with which priorities and limits, comes from configuration. If EM "does something strange", the answer is usually in the manifest. This chapter gives the big picture; [Chapter 13](#13-configuration-reference-what-to-configure) lists every setting in detail.
 
-### 4.1 Lifecycle of an Executable
+### 4.1 Where the Configuration Lives
 
-| Phase | What happens to the software | Meta information |
-| --- | --- | --- |
-| Development and integration | The binary is linked, configured and calibrated for deployment onto the target machine. It may contain code generated at integration time. | Execution Manifest, plus the Service Instance Manifest (the latter is not used by EM) |
-| Deployment and removal | The binary is installed on the target machine. A previous version, if any, is removed. | Processed Manifests, stored in a platform-specific format that can be read efficiently at machine startup |
-| Execution | A process is started as an instance of the binary. | EM uses the Processed Manifests to start and configure each process individually. |
+EM reads parts of several models and manifests. [Guide 02](02_Manifests.md#4-configuration-overview) describes all of them and how they are written in ARXML; the following table shows only what matters to EM. The roles and steps follow the AUTOSAR methodology ([guide 02, Chapter 11](02_Manifests.md#11-the-methodology-from-design-to-a-running-machine)); real projects may distribute the work differently.
 
-### 4.2 Manifest Types
-
-| Manifest | Created | Content relevant for EM | Used by EM? |
+| Model or manifest | Typically configured by | Methodology step | Main elements for EM |
 | --- | --- | --- | --- |
-| Execution Manifest | At integration time, from information provided by the application developer. It is deployed together with the Executable. | The Modelled Processes: in which Function Group States they run, their startup configurations (arguments, environment, scheduling, timeouts, termination behavior), Execution Dependencies and resource settings. | Yes |
-| Machine Manifest | At integration time, for one specific machine. It is redeployed whenever its content changes. | Everything that cannot be assigned to a specific Executable: default timeouts, machine-wide environment variables, resource groups, processors and cores, trusted-platform mode. | Yes |
-| Service Instance Manifest | At integration time | Communication deployment for Communication Management | No. In `strictMode`, however, its integrity is checked ([SWS_EM_02308]). |
-| Processed Manifest | Converted from the ARXML manifests into a platform-specific format. This happens off-board at integration or deployment time, or on the machine by UCM at installation time. | The same content, optimized for fast reading at startup | Yes. This is what EM actually reads. |
+| Application design | Application developer | Application Design | `Executable` (whether its processes report their Execution State) |
+| Machine Manifest | Integrator of the Machine | Machine Manifest | `Machine` (default timeouts, environment variables, trusted-platform mode, processors), `ResourceGroup`, the Function Group `MachineFG` and its states |
+| Execution Manifest | Integrator of a Software Cluster | Software Cluster Integration | `Process`, `StateDependentStartupConfig`, `StartupConfig`, `ExecutionDependency`, `ProcessToMachineMapping`, application Function Groups such as `ADAS` |
+| State Management configuration | Integrator | Configure Platform Modules | `FunctionGroupPortMapping`: which State Management process may control which Function Group |
+| Software distribution | Integrator, OEM | Software Packaging | `SoftwareCluster`: which Function Groups and processes belong to which installable unit |
+| Service Instance Manifest | Software cluster responsible, finalized by the integrator | Software Cluster Integration | Nothing to configure for EM. In `strictMode`, EM checks its integrity ([SWS_EM_02308]). |
 
-Two practical consequences:
+EM does not read ARXML at run time. The manifests are converted into **Processed Manifests**, a platform-specific format that is quick to read at startup. The conversion happens off-board at integration or deployment time, or on the machine by Update and Configuration Management at installation time ([guide 02, Section 11.8](02_Manifests.md#118-how-the-platform-consumes-manifests-at-run-time)).
 
-- **Per-process, per-state configuration.** Each process is configured individually and can use a *different* configuration in different Function Group States, for example different arguments in `Normal` and in `Degraded`.
-- **Validation is the tooling's job.** The vendor tooling is expected to validate the configuration. EM assumes that the manifests are consistent.
+### 4.2 How the Elements Relate
 
-### 4.3 The Meta-Model Elements EM Reads
+The following class diagram shows the elements that EM reads and the references between them. An arrow points from the element that holds the reference.
 
 ```mermaid
 classDiagram
     direction LR
-    class Process {
-        +functionClusterAffiliation
-        +numberOfRestartAttempts
-        +preMapping
-    }
     class Executable {
         +reportingBehavior
-        +version
+    }
+    class Process {
+        +numberOfRestartAttempts
+        +preMapping
+        +functionClusterAffiliation
     }
     class StateDependentStartupConfig
     class StartupConfig {
@@ -617,8 +627,18 @@ classDiagram
         +memoryUsage
     }
     class ModeDeclaration
-    class FunctionGroupPortMapping
     class ModeDeclarationGroupPrototype
+    class Machine {
+        +defaultApplicationTimeout
+        +environmentVariable
+        +trustedPlatformExecutableLaunchBehavior
+    }
+    class ProcessToMachineMapping {
+        +shallRunOn
+        +shallNotRunOn
+    }
+    class FunctionGroupPortMapping
+    class SoftwareCluster
     Process --> Executable : executable
     Process *-- StateDependentStartupConfig : stateDependentStartupConfig
     StateDependentStartupConfig --> ModeDeclaration : functionGroupState
@@ -626,140 +646,39 @@ classDiagram
     StateDependentStartupConfig *-- ExecutionDependency : executionDependency
     StateDependentStartupConfig --> ResourceGroup : resourceGroup
     StateDependentStartupConfig *-- ResourceConsumption : resourceConsumption
-    ExecutionDependency --> ModeDeclaration : processState
+    ExecutionDependency --> Process : processState of another process
+    ModeDeclarationGroupPrototype --> ModeDeclaration : states, via its type
+    Machine *-- ResourceGroup : via OsModuleInstantiation
+    ProcessToMachineMapping --> Process : process
+    ProcessToMachineMapping --> Machine : machine
     FunctionGroupPortMapping --> Process : process
     FunctionGroupPortMapping --> ModeDeclarationGroupPrototype : functionGroup
+    SoftwareCluster --> ModeDeclarationGroupPrototype : claimedFunctionGroup
+    SoftwareCluster --> Process : containedProcess
 ```
 
-| Meta-class | Role for EM |
-| --- | --- |
-| `Process` | The Modelled Process. It references the Executable and holds the startup configurations per state, the number of restart attempts, pre-mapping, and the functional cluster affiliation. |
-| `Executable` | The program. `reportingBehavior` decides whether its processes are reporting or non-reporting. |
-| `StateDependentStartupConfig` | Says: "In *these* Function Group States, start the process with *this* `StartupConfig`, *these* Execution Dependencies, *this* ResourceGroup and *these* resource limits." A process can have several of them. |
-| `StartupConfig` | A reusable set of start parameters. |
-| `ExecutionDependency` | References a `ModeDeclaration` that represents a Process State (`Running` or `Terminated`) of another process. The process states are modelled in `Process.processStateMachine`. |
-| `ResourceGroup` | Group-level CPU and memory limits, defined in the machine's OS module instantiation. |
-| `ResourceConsumption` | The memory limit of an individual process. |
-| `ModeDeclarationGroupPrototype` / `ModeDeclaration` | A Function Group / a Function Group State. The same constructs model the Process States used in dependencies. |
-| `FunctionGroupPortMapping` | Connects a State Management process (one of its R-ports, typed by the `StateClientInterface`) to the Function Group that it may control. |
-| `ProcessToMachineMapping`, `ProcessDesignToMachineDesignMapping` | Map a process to a machine and carry the core affinity (`shallRunOn`, `shallNotRunOn`). |
-| `Machine` | Machine-wide settings: `defaultApplicationTimeout`, `environmentVariable`, `trustedPlatformExecutableLaunchBehavior`, processors, module instantiations. |
-| `SoftwareCluster` | An installable software package that claims Function Groups. The one with category `PLATFORM_CORE` carries `MachineFG`. |
+A Function Group is modeled as a `ModeDeclarationGroupPrototype`, and each of its states as a `ModeDeclaration` ([guide 02, Section 7.5](02_Manifests.md#75-function-groups-and-their-states)). Read the diagram from the `Process` outwards:
+
+- A **`Process`** (the Modelled Process) runs one **`Executable`**. The Executable says whether its processes report their Execution State.
+- The process has one or more **`StateDependentStartupConfig`** elements. Each one says: "in *these* Function Group States, start the process with *this* `StartupConfig`, *these* Execution Dependencies, *this* ResourceGroup and *these* memory limits."
+- A **`StartupConfig`** is a reusable set of start parameters: arguments, environment, scheduling, termination behavior, timeouts, child-process permission and execution error.
+- An **`ExecutionDependency`** points to a Process State (`Running` or `Terminated`) of another process.
+- The **`Machine`** holds the machine-wide defaults and the ResourceGroups. A **`ProcessToMachineMapping`** puts each process on its machine and can restrict its cores.
+- A **`FunctionGroupPortMapping`** gives one State Management process the right to control one Function Group. A **`SoftwareCluster`** claims Function Groups and contains processes.
 
 When this guide says that **a process references a state**, it means that one of the process's `StateDependentStartupConfig` elements lists that Function Group State in `functionGroupState`.
 
-### 4.4 Configuration Parameters and Their Effect
+Two consequences shape everything that follows:
 
-| Parameter | Effect on EM behavior | Default, or behavior if absent | Spec |
-| --- | --- | --- | --- |
-| `Executable.reportingBehavior` | `reportsExecutionState`: the process must report `kRunning`. `doesNotReportExecutionState`: the process is *Running* right after creation. | Reporting | [SWS_EM_01402] |
-| `StateDependentStartupConfig.functionGroupState` | The Function Group States in which the process runs with this configuration. | A process that references no state is never started. | [SWS_EM_01033], [SWS_EM_01066] |
-| `StateDependentStartupConfig.executionDependency` | Start order, and reverse termination order. | No ordering constraint | [SWS_EM_01050], [SWS_EM_01051] |
-| `StateDependentStartupConfig.resourceGroup` | The ResourceGroup that the process belongs to. | Required: every Modelled Process must belong to a ResourceGroup. | [SWS_EM_02106] |
-| `StateDependentStartupConfig.resourceConsumption.memoryUsage` | Maximum memory that the process itself may allocate. | No process-level limit | [SWS_EM_02108] |
-| `ResourceGroup.cpuUsage` | CPU limit for all processes of the group, in percent of the machine's total CPU capacity. | Only implicit limits (priority, scheduling) | [SWS_EM_02103] |
-| `ResourceGroup.memUsage` | RAM limit for all processes of the group, in bytes. | Only implicit limits | [SWS_EM_02102] |
-| `StartupConfig.terminationBehavior` | `processIsSelfTerminating` allows the process to exit on its own. | Terminates only on request (`processIsNotSelfTerminating`) | [SWS_EM_01314] |
-| `StartupConfig.timeout` | Start-up timeout (time until `kRunning`) and termination timeout (time until exit) for this configuration. | Termination: `Machine.defaultApplicationTimeout` | [SWS_EM_02253], [SWS_EM_01065] |
-| `StartupConfig.processArgument` (ordered) | Passed as `argv[1..n]`. `argv[0]` is the name of the Executable. | Only `argv[0]` | [SWS_EM_01012], [SWS_EM_01072], [SWS_EM_01078] |
-| `StartupConfig.environmentVariable` and `Machine.environmentVariable` | Environment of the process. If both define the same variable, the Execution Manifest wins. A missing value means an empty string. | No additional variables | [SWS_EM_02246], [SWS_EM_02247], [SWS_EM_02248], [SWS_EM_02249] |
-| `StartupConfig.schedulingPolicy` and `schedulingPriority` | Scheduling of the *first* thread (`SCHED_FIFO`, `SCHED_RR`, `SCHED_OTHER`, ...) | Not defined by the EM specification (OS default) | [SWS_EM_01014], [SWS_EM_01015] |
-| `StartupConfig.permissionToCreateChildProcess` | Whether the process may create child processes | `false`: EM restricts the process | [SWS_EM_02558], [SWS_EM_02559] |
-| `StartupConfig.processExecutionError` | The `ExecutionError` value reported to State Management when this process fails | `1` | [SWS_EM_02543] |
-| `Process.numberOfRestartAttempts` | How often EM retries a failed start-up during a state transition | `0` or absent: start once. `1`: one retry. | [SWS_EM_02260] |
-| `Process.preMapping` | `true`: the process is fully pre-mapped (pre-loaded) to avoid demand-loading delays. | No pre-mapping | [SWS_EM_02109] |
-| `Process.functionClusterAffiliation` | Must be `STATE_MANAGEMENT` for a process that uses `StateClient` | Use of `StateClient` is a violation | [SWS_EM_02297] |
-| `FunctionGroupPortMapping` | Which State Management process (and port) controls which Function Group | Requests are rejected with `kInvalidMetaModelIdentifier` | [SWS_EM_02583], [SWS_EM_02584] |
-| `ProcessToMachineMapping.shallRunOn` / `shallNotRunOn` | Core affinity of the first thread. Takes precedence over `ProcessDesignToMachineDesignMapping`. | All cores | [SWS_EM_02104], [SWS_EM_02596] |
-| `Machine.trustedPlatformExecutableLaunchBehavior` | `strictMode`, `monitorMode` or `noTrustedPlatformSupport` | See [Chapter 12](#12-security-trusted-platform-and-iam) | [SWS_EM_02305] |
-
-### 4.5 The Running Example as a Manifest
-
-The following *conceptual* view shows the most important parts of the running example. Real manifests are ARXML and much more verbose. See the *Manifest Specification* for the exact syntax.
-
-```yaml
-# Conceptual view of the running example. NOT real ARXML syntax.
-
-Machine HPC:
-  trustedPlatformExecutableLaunchBehavior: strictMode
-  defaultApplicationTimeout: { enter: 2s, exit: 1s }    # machine-wide default timeouts
-  environmentVariable: [ "LOG_LEVEL=info", "TZ=UTC" ]
-  resourceGroups:                                        # defined in the OS module instantiation
-    platform_rg: { cpuUsage: 20, memUsage: 536870912 }   # 20 % CPU, 512 MiB
-    adas_rg:     { cpuUsage: 60, memUsage: 2147483648 }  # 60 % CPU, 2 GiB
-    legacy_rg:   { cpuUsage: 10, memUsage: 268435456 }   # 10 % CPU, 256 MiB: isolates the third-party binary
-
-FunctionGroups:
-  MachineFG: [ Off, Startup, Driving, Shutdown, Restart, Verify ]  # claimed by the PLATFORM_CORE SoftwareCluster
-  ADAS:      [ Off, Normal, Degraded ]
-
-Process Storage:
-  executable: storage
-  stateDependentStartupConfig:
-    - functionGroupState: [ ADAS.Normal, ADAS.Degraded ]  # ONE shared config: keeps running across Normal and Degraded
-      startupConfig: storage_cfg
-      resourceGroup: adas_rg
-
-Process CalibrationCheck:
-  executable: calib_check
-  stateDependentStartupConfig:
-    - functionGroupState: [ ADAS.Normal ]
-      startupConfig: calib_cfg                # terminationBehavior: processIsSelfTerminating
-      executionDependency: [ Storage.Running ]
-      resourceGroup: adas_rg
-
-Process LegacyLogger:
-  executable: legacy_logger                   # Executable.reportingBehavior: doesNotReportExecutionState
-  stateDependentStartupConfig:
-    - functionGroupState: [ ADAS.Normal, ADAS.Degraded ]
-      startupConfig: legacy_cfg
-      resourceGroup: legacy_rg
-
-Process LoggerCompanion:
-  executable: logger_companion
-  stateDependentStartupConfig:                # has a dependency, so one config PER state (constr_10411)
-    - functionGroupState: [ ADAS.Normal ]
-      startupConfig: companion_cfg
-      executionDependency: [ LegacyLogger.Running ]
-      resourceGroup: adas_rg
-    - functionGroupState: [ ADAS.Degraded ]
-      startupConfig: companion_cfg
-      executionDependency: [ LegacyLogger.Running ]
-      resourceGroup: adas_rg
-
-Process Fusion:
-  executable: fusion
-  numberOfRestartAttempts: 1                  # one retry if the start-up fails
-  stateDependentStartupConfig:
-    - functionGroupState: [ ADAS.Normal ]
-      startupConfig: fusion_cfg
-      executionDependency: [ CalibrationCheck.Terminated, LoggerCompanion.Running ]
-      resourceGroup: adas_rg
-      resourceConsumption: { memoryUsage: 1073741824 }   # 1 GiB
-
-StartupConfig fusion_cfg:
-  processArgument: [ "--mode", "full" ]       # argv = { "fusion", "--mode", "full" }
-  environmentVariable: [ "LOG_LEVEL=debug" ]  # overrides the machine-wide value
-  schedulingPolicy: SCHED_FIFO
-  schedulingPriority: 40
-  terminationBehavior: processIsNotSelfTerminating
-  timeout: { enter: 3s, exit: 500ms }         # start-up and termination timeouts
-  permissionToCreateChildProcess: false       # the default
-  processExecutionError: 42                   # reference to an application error with code 42
-```
-
-Notice three design decisions in this configuration. Chapters 6 to 8 explain why they matter.
-
-- `Storage`, `CameraDriver` and `LegacyLogger` share **one** `StateDependentStartupConfig` for `Normal` and `Degraded`. They therefore keep running when ADAS switches between these two states.
-- `LoggerCompanion` declares an Execution Dependency. Constraint [constr_10411] then requires a **separate** `StateDependentStartupConfig` per state, which means that EM **restarts** `LoggerCompanion` on every `Normal` ↔ `Degraded` transition.
-- `LegacyLogger` runs in its own ResourceGroup, so that the unmodifiable third-party binary cannot starve the rest of the system.
+- **Per-process, per-state configuration.** Each process is configured individually and can use a *different* configuration in different Function Group States, for example different arguments in `Normal` and in `Degraded`. Whether two states share a configuration decides whether a process keeps running or is restarted when the Function Group switches between them ([Section 8.2](#82-the-three-logical-steps)).
+- **Validation is the tooling's job.** The constraints of the *Manifest Specification* are checked by the vendor tooling at integration time. EM assumes that the manifests it reads are consistent.
 
 > **Key takeaways**
 >
-> - EM reads *Processed Manifests*, a platform-specific conversion of the Execution Manifests and the Machine Manifest.
+> - EM reads the Executable, the Execution Manifest, the Machine Manifest, the State Management configuration and the Software Clusters, all converted into Processed Manifests.
 > - The central element is the `StateDependentStartupConfig`: *in which states* a process runs, *with which* startup configuration, dependencies and resources.
-> - Most parameters have well-defined defaults: reporting, not self-terminating, no child processes, `ExecutionError` value `1`, start once.
 > - Whether a process keeps running or is restarted at a transition depends on whether the two states share the same `StateDependentStartupConfig`.
+> - [Chapter 13](#13-configuration-reference-what-to-configure) lists every attribute, its meaning, what happens when it is absent, and the complete configuration of the running example.
 
 ---
 
@@ -817,6 +736,8 @@ Before the `main()` function of a process runs, EM prepares the process accordin
 8. **Associate the process with its identity**, so that IAM can enforce access rights ([SWS_EM_02400]).
 9. **Create the OS process.** The Process State becomes `Starting`. EM logs `ProcessCreated` ([SWS_EM_02573]) and starts monitoring the start-up timeout ([SWS_EM_02253]).
 
+Every step is driven by a setting of the `Process`, its `StartupConfig` or the `Machine`. [Chapter 13](#13-configuration-reference-what-to-configure) lists them, from [Section 13.3](#133-process) to [Section 13.8](#138-core-affinity-processtomachinemapping-and-processdesigntomachinedesignmapping).
+
 The following diagram shows the normal start of a reporting process that is supervised by PHM:
 
 ```mermaid
@@ -835,7 +756,7 @@ sequenceDiagram
     Note over EM: Process State = Starting, start-up timer runs
     EM->>LT: DLT ProcessCreated
     OS->>P: main() starts
-    P->>P: ara::core::Initialize()
+    P->>P: ara::core::Initialize(argc, argv)
     P->>P: ExecutionClient::Create(terminationHandler)
     P->>P: Application initialization
     P->>EM: ReportExecutionState(kRunning)
@@ -1013,7 +934,7 @@ PHM supervises processes, for example with alive, deadline and logical supervisi
 | "Initiating process termination" | To stop the supervisions before the process goes away | [SWS_EM_01211] |
 | "Process terminated" | To supervise self-terminating processes | [SWS_EM_01212] |
 
-These notifications use vendor-specific interfaces between the two functional clusters. Their signatures are not standardized.
+These notifications use vendor-specific interfaces between the two functional clusters. Their signatures are not standardized. How PHM supervises processes is the topic of guide 06 (`06_PlatformHealthManagement.md`, planned).
 
 ### 5.10 Child Processes
 
@@ -1104,6 +1025,7 @@ At termination, EM may stop `Storage` and `ConfigReader` **at the same time**. `
 4. **A restart attempt does not fulfill `Terminated` dependencies** ([SWS_EM_02280]). If EM kills a failing process during start-up and retries, that kill does not count as "terminated" for the processes waiting on it.
 5. **Dependencies are resolved against the processes of the RequestedState** ([SWS_EM_02245]). If `A` is restarted during a transition, `B`, which depends on `A.Running`, waits for the *new* instance of `A` (see [Section 8.8](#88-worked-example-dependency-resolution-during-a-state-change)).
 6. **Non-reporting providers are Running at once.** Use a Companion Process (see [Section 5.4](#54-non-reporting-processes-and-the-companion-pattern)).
+7. **No mutual dependencies** ([constr_1606]). If `A` depends on a state of `B`, then `B` must not depend on a state of `A`. Neither could ever start.
 
 ### 6.5 Dependencies in the Running Example
 
@@ -1193,6 +1115,7 @@ When a group of applications is installed on a machine, it is useful to control 
 
 - **Each Function Group has its own processes and its own states.** Each Function Group State defines which processes run, and with which startup configuration, when State Management requests that state.
 - **`Off` is mandatory and initial.** Every Function Group, including `MachineFG`, has an `Off` state that EM uses as the initial state ([SWS_EM_01110], [TPS_MANI_03195]). No process can be mapped to `Off` ([constr_3424]).
+- **`Verify` is mandatory, too.** Every Function Group must also have a state `Verify` ([constr_10023]). For `MachineFG` the EM specification requires it as well ([SWS_EM_CONSTR_02556]). State Management uses `Verify` while an update of the Function Group's Software Cluster is activated; guide 13 (`13_UpdateAndConfigManagement.md`, planned) explains the update sequence.
 - **A process belongs to at most one Function Group** ([constr_1688]). If a process could run in states of two Function Groups, a state transition in one group would have to terminate it and would thereby break the active state of the other group.
 - **A process can reference several states of the same Function Group.** If these states share one `StateDependentStartupConfig`, the process keeps running when the group switches between them. If they use different configurations, the process is restarted ([SWS_EM_01033], [SWS_EM_02251]).
 - **A process that references no state is never started.**
@@ -1240,7 +1163,7 @@ In the running example, `Storage`, `CameraDriver` and `LegacyLogger` behave like
 | Reacts to failures | Decides on recovery | Detects and reports: through the `SetState` result or the `undefinedStateCallback` |
 | Controls a given Function Group | Exactly one SM process per Function Group ([SWS_EM_CONSTR_02560]) | Exactly one EM per machine |
 
-Several processes with State Management responsibilities may exist on a machine. Each Function Group, however, must be referenced by at most one `FunctionGroupPortMapping`, so that it is clear which SM process is responsible for it.
+Several processes with State Management responsibilities may exist on a machine. Each Function Group, however, must be referenced by at most one `FunctionGroupPortMapping`, so that it is clear which SM process is responsible for it ([Section 13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)). How State Management decides which state to request is the topic of guide 05 (`05_StateManagement.md`, planned).
 
 > **Key takeaways**
 >
@@ -1308,7 +1231,7 @@ EM monitors two timeouts during a transition. They are handled in fundamentally 
 - When the timeout expires, EM asks the OS to terminate the process forcibly, which is `SIGKILL` on POSIX systems ([SWS_EM_02255]), and logs `ProcessTerminationTimeout` ([SWS_EM_02258]).
 - **The transition continues.** The target state is still reached, because the hanging process has been killed. This guarantees that the `Off` state can always be reached, provided that killing a process at OS level always works.
 
-**Start-up timeout.** The start-up timeout is defined per startup configuration in the Execution Manifest ([TPS_MANI_01277]).
+**Start-up timeout.** The start-up timeout is defined per startup configuration in the Execution Manifest ([TPS_MANI_01277]). The Machine Manifest also provides a default start-up timeout ([TPS_MANI_01412]); the EM specification itself mentions only the per-configuration value. [Section 13.5](#135-startupconfig) shows both timeouts and their defaults.
 
 - EM monitors the time between requesting the process creation from the OS and the process reporting `kRunning` ([SWS_EM_02253]).
 - For non-reporting processes, the start-up time is zero, because they enter `Running` immediately.
@@ -1388,7 +1311,7 @@ Further rules:
 
 ### 8.7 Sequence Diagrams
 
-**(a) Successful transition** `ADAS.Normal` → `ADAS.Degraded` (simplified: the restart of `LoggerCompanion` is shown in [Chapter 15](#15-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu)):
+**(a) Successful transition** `ADAS.Normal` → `ADAS.Degraded` (simplified: the restart of `LoggerCompanion` is shown in [Chapter 16](#16-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu)):
 
 ```mermaid
 sequenceDiagram
@@ -1621,13 +1544,13 @@ Important rules for integrators:
 
 ### 9.5 Functional Cluster Lifecycle of the ara::exec Library
 
-Like every Adaptive Platform library, `ara::exec` is initialized by `ara::core::Initialize()` and deinitialized by `ara::core::Deinitialize()` ([SWS_EM_02557]). Calling `ara::exec` APIs before `Initialize()` or after `Deinitialize()` results in implementation-defined behavior.
+Like every Adaptive Platform library, `ara::exec` is initialized by `ara::core::Initialize` and deinitialized by `ara::core::Deinitialize` ([SWS_EM_02557]). Calling `ara::exec` APIs before `Initialize` or after `Deinitialize` results in implementation-defined behavior. Since R25-11, `Initialize` takes `argc` and `argv`, because a platform may pass its own options on the command line ([SWS_CORE_10003]). [Guide 03, Chapter 5](03_CoreAndGeneral.md#5-platform-initialization-and-shutdown) explains the rules; in short:
 
 ```cpp
-int main() {
-    if (!ara::core::Initialize().HasValue()) { return EXIT_FAILURE; }
+int main(int argc, char* argv[]) {
+    if (!ara::core::Initialize(argc, argv).HasValue()) { return EXIT_FAILURE; }
     // ... use ara::exec::ExecutionClient, ara::log, ara::com, ...
-    ara::core::Deinitialize();
+    if (!ara::core::Deinitialize().HasValue()) { return EXIT_FAILURE; }
     return EXIT_SUCCESS;
 }
 ```
@@ -1653,7 +1576,7 @@ int main() {
 
 ### 10.1 Errors and Violations
 
-`ara::exec` follows the error handling model of `ara::core`:
+`ara::exec` follows the error handling model of `ara::core`, which [guide 03, Chapter 6](03_CoreAndGeneral.md#6-the-error-handling-model) explains in depth. In short:
 
 - **Errors** are conditions that the caller can handle. Functions return `ara::core::Result<T>` or `ara::core::Future<T>`, which contain either a value or an `ara::core::ErrorCode`. An error code consists of an error *domain*, here `ExecErrorDomain`, and a *value*, here `ExecErrc`. If C++ exceptions are enabled, an error can also be thrown as `ara::exec::ExecException`.
 - **Violations** are broken contracts that the caller cannot sensibly handle, such as misuse of an API. The platform logs a **violation message** and terminates the offending process, which is an Abnormal Termination.
@@ -1687,7 +1610,7 @@ Every documented error of an API also has a **recoverability class** (defined in
 - `rollback_semantics`: the failed call has left no lasting effect. You can retry safely, or retry with a different argument.
 - `no_rollback_semantics`: the call may already have had effects. For example, a transition that failed half-way may already have terminated or started processes.
 
-The tables in [Chapter 13](#13-api-reference-and-usage-guide-araexec) list the class for each API.
+The tables in [Chapter 14](#14-api-reference-and-usage-guide-araexec) list the class for each API.
 
 ### 10.3 Undefined Function Group State
 
@@ -1796,7 +1719,7 @@ There are two resource demand values:
 
 ### 11.3 ResourceGroup: Group-Level Limits
 
-A **ResourceGroup** bundles resource limits for a set of processes. Every Modelled Process is required to belong to a ResourceGroup. Membership is configured per `StateDependentStartupConfig`, so it can differ from state to state ([SWS_EM_02106]).
+A **ResourceGroup** bundles resource limits for a set of processes. Every Modelled Process is required to belong to a ResourceGroup (Section 7.5.1 of the specification). Membership is configured per `StateDependentStartupConfig`, which must reference exactly one ResourceGroup of the Machine Manifest ([constr_3413]), so it can differ from state to state. EM configures each process according to its membership ([SWS_EM_02106]).
 
 | Attribute | Meaning | EM behavior | If not configured |
 | --- | --- | --- | --- |
@@ -1843,7 +1766,7 @@ These three policies are the minimal set. Depending on the OS, more may be confi
 
 **Deterministic and best-effort subsystems.** For deterministic subsystems, the required computing time is guaranteed and violations are treated as errors. Best-effort subsystems can often mitigate sporadic violations, for example by finishing the calculation at the next activation, or by delivering a result of lower quality. Monitoring them may therefore not even be necessary. The critical property in both cases is that one process, or set of processes, **cannot adversely affect the others**.
 
-> **Pitfall:** Setting `schedulingPolicy = SCHED_FIFO` in the manifest makes only the **main thread** real-time. Worker threads that you create yourself need their own scheduling configuration.
+> **Pitfall:** Setting `schedulingPolicy = SCHED_FIFO` in the manifest configures only the **main thread**. EM cannot enforce a policy for the whole process (Section 7.5.3.3 of the specification). What a worker thread gets depends on how it is created. On Linux, the default of a new thread is `PTHREAD_INHERIT_SCHED`, so it inherits the policy and priority of the thread that creates it [EXT-021]; with `PTHREAD_EXPLICIT_SCHED` and explicit attributes, or after `pthread_setschedparam()`, it gets whatever the code sets. The process is responsible for the scheduling of all threads other than the first one.
 
 ### 11.6 Monitoring and Reaction
 
@@ -1858,7 +1781,7 @@ Self-monitoring, and monitoring by another process, are currently out of scope o
 
 ### 11.7 Mapping to OS Mechanisms
 
-> **Note (implementation example):** The specification does not prescribe *how* EM implements the configuration. On Linux, an implementation might use the following mechanisms. Other operating systems, such as QNX or PikeOS, have their own equivalents.
+> **Note (implementation example):** The specification does not prescribe *how* EM implements the configuration. On Linux, an implementation might use the following mechanisms, which the Linux documentation describes [EXT-009], [EXT-010]. Other operating systems, such as QNX or PikeOS, have their own equivalents.
 
 | Configuration | Possible mechanism on Linux |
 | --- | --- |
@@ -1958,7 +1881,7 @@ sequenceDiagram
 
 ### 12.4 Security Events
 
-EM defines one security event for the Intrusion Detection System Manager ([SWS_EM_02588], [SWS_EM_02589]). Its status is DRAFT in R25-11.
+EM defines one security event for the Intrusion Detection System Manager ([SWS_EM_02588], [SWS_EM_02589]). Its status is DRAFT in R25-11. How IdsM qualifies and forwards security events is the topic of guide 16 (`16_IDSM_Firewall.md`, planned).
 
 | Field | Value |
 | --- | --- |
@@ -1971,7 +1894,7 @@ EM defines one security event for the Intrusion Detection System Manager ([SWS_E
 
 ### 12.5 Identity and Access Management Support
 
-Following the **principle of least privilege**, Identity and Access Management (IAM) assigns permissions to Modelled Processes for accessing the public interfaces of functional clusters. To enforce those permissions, processes must be identifiable at run time.
+Following the **principle of least privilege**, Identity and Access Management (IAM) assigns permissions to Modelled Processes for accessing the public interfaces of functional clusters. To enforce those permissions, processes must be identifiable at run time. IAM itself is the topic of guide 15 (`15_IdentityAndAccessManagement.md`, planned).
 
 - **EM records the identity.** EM starts processes from Modelled Processes, so it knows which OS process belongs to which Modelled Process. EM associates the identity of the Modelled Process with the identity of the OS process when it creates the process ([SWS_EM_02400]).
 - **The form of identity is open.** It is implementation-specific, for example the process ID, a cryptographic token or a user ID.
@@ -2008,11 +1931,340 @@ flowchart TD
 
 ---
 
-## 13. API Reference and Usage Guide (ara::exec)
+## 13. Configuration Reference: What to Configure
+
+> **Why this matters:** Many integration problems with EM are configuration problems: a process that is never started because it references no state, a transition that hangs on a dependency, a restart nobody expected, a State Management process that gets `kInvalidMetaModelIdentifier`. This chapter lists everything that you must or can configure for EM, what each setting means, and what happens at run time when you change it.
+
+[Chapter 4](#4-configuration-overview) gave the map. This chapter goes through the elements one by one. Each section starts with the purpose of the element, the manifest it lives in and the role that typically configures it, followed by a table with these columns:
+
+- **Meaning:** what the attribute says, in plain words.
+- **Type and values:** the meta-model type; for enumerations, the literals as written in the meta-model. [Guide 02, Chapter 12](02_Manifests.md#12-configuration-reference-what-to-configure) gives the XML names.
+- **Mult.:** the multiplicity in the class table (Appendix A of the specification, or the TPS). Many attributes are `0..1` in the meta-model and are made mandatory by a constraint; the *Rules* column says so.
+- **If absent:** the EM specification defines no default values for its configuration (Section 10.1 of the specification). This column gives the behavior that a requirement of the EM specification or the TPS states for a missing attribute. Where neither states one, it says "not specified".
+- **Rules:** the constraints. Constraints of the TPS are checked by the integration tooling, typically when the manifests are created (imposition time `IT_Mani`); EM assumes that they hold.
+- **Effect at run time:** what EM does with the value, with a link to the section that explains the mechanism.
+
+### 13.1 Minimal Configuration
+
+The following checklist is the smallest configuration with which EM brings up the running example. Each step names the element, its manifest and whether it is mandatory. [Section 13.11](#1311-the-running-example-complete-configuration) shows the result.
+
+1. **Machine** (mandatory, Machine Manifest). Set `trustedPlatformExecutableLaunchBehavior` (`HPC`: `strictMode`), `defaultApplicationTimeout` with both values, at least one `Processor` with its cores, and an `OsModuleInstantiation` with at least one `ResourceGroup` ([Section 13.6](#136-machine)). The tooling rejects a Machine without them ([constr_10170], [constr_10430], [constr_10171], [constr_1661]).
+2. **ResourceGroups** (mandatory, Machine Manifest). One per isolation domain, with measured `cpuUsage` and `memUsage` (`HPC`: `platform_rg`, `adas_rg`, `legacy_rg`; [Section 13.7](#137-resourcegroup)).
+3. **`MachineFG`** (mandatory, Machine Manifest). Exactly one Function Group named `MachineFG` with `Off` as initial state, `Startup`, `Shutdown`, `Restart` and `Verify`, plus the project states (`HPC`: `Driving`) ([Section 13.9](#139-function-groups-and-software-clusters)).
+4. **Application Function Groups** (as needed, Execution Manifest). Each with `Off` as initial state and `Verify` (`HPC`: `ADAS` with `Normal` and `Degraded`).
+5. **Software Clusters** (mandatory). Exactly one of category `PLATFORM_CORE`, which claims `MachineFG`; each cluster claims its Function Groups and contains its processes (`HPC`: `HpcPlatformCore`, `AdasCluster`).
+6. **Executables** (mandatory, application design). Leave `reportingBehavior` out for software written for the Adaptive Platform; set it to `doesNotReportExecutionState` only for software that cannot report (`HPC`: `legacy_logger`; [Section 13.2](#132-executable)).
+7. **StartupConfigs** (mandatory, Execution Manifest). At least one per process; an empty one is valid and gives the behavior of the *If absent* column ([Section 13.5](#135-startupconfig)).
+8. **Processes** (mandatory, Execution Manifest). Per process: its `executable`, and one `StateDependentStartupConfig` per group of states that share a configuration, each with its states (never `Off`), a `StartupConfig` and exactly one `ResourceGroup` ([Section 13.3](#133-process), [Section 13.4](#134-statedependentstartupconfig-and-executiondependency)).
+9. **Execution Dependencies** (optional). Give every process that others depend on a `processStateMachine` with the states `Running` and `Terminated`, then add the `executionDependency` entries (`HPC`: four dependency targets).
+10. **ProcessToMachineMappings** (mandatory, Execution Manifest). Exactly one per process, to its Machine ([Section 13.8](#138-core-affinity-processtomachinemapping-and-processdesigntomachinedesignmapping)).
+11. **Shutdown and restart** (mandatory). At least one process references `MachineFG.Shutdown` and at least one references `MachineFG.Restart` (`HPC`: `PowerControl`).
+12. **State Management** (mandatory). The State Management process references every Machine State except `Off` ([SWS_SM_CONSTR_00001]), has `functionClusterAffiliation = STATE_MANAGEMENT`, and has one R-port typed by a `StateClientInterface` plus one `FunctionGroupPortMapping` for each Function Group it controls ([Section 13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)).
+13. **Validation** (mandatory). Let the tooling check all constraints before the manifests are converted into Processed Manifests ([guide 02, Section 3.9](02_Manifests.md#39-validating-arxml)).
+
+> **Pitfall:** Steps 11 and 12 are easy to forget on a first bring-up, because the machine starts without them. Without step 12, State Management gets `kInvalidMetaModelIdentifier` for every request, or a `StateClientUsageRestrictionViolation`. Without step 11, no process performs the actual shutdown or restart, because EM never does it itself ([Section 9.4](#94-shutdown-and-restart)).
+
+### 13.2 Executable
+
+**Purpose:** the program file. **Lives in:** application design. **Configured by:** application developer. **Spec:** Table A.1; [TPS_MANI_01279].
+
+| Attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `reportingBehavior` | Whether the processes of this Executable report their Execution State | `ExecutionStateReportingBehaviorEnum`: `reportsExecutionState`, `doesNotReportExecutionState` | `0..1` | Reports ([TPS_MANI_01279]) | Non-reporting: no port typed by a PHM supervision interface ([constr_3795]) | Reporting: EM waits for `kRunning`. Non-reporting: *Running* right after creation ([SWS_EM_01402]), empty signal mask ([SWS_EM_02579]), `ReportExecutionState` is a violation ([SWS_EM_01403]). See [Section 5.4](#54-non-reporting-processes-and-the-companion-pattern). |
+
+The other attributes of `Executable`, such as `version` and `minimumTimerGranularity`, are not used by EM. The `rootSwComponentPrototype` matters for the State Management ports of [Section 13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping).
+
+> **Pitfall:** A non-reporting process cannot be supervised by Platform Health Management ([constr_3795]). If you need supervision, the software must be adapted to report its Execution State.
+
+### 13.3 Process
+
+**Purpose:** the Modelled Process: one way to run an Executable. **Lives in:** Execution Manifest. **Configured by:** integrator of the Software Cluster. **Spec:** Table A.10; TPS Section 10.2.
+
+| Attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `executable` | The Executable that the process runs | Reference to `Executable` | `*` | Not specified | At most one ([constr_3732]) | The binary that EM starts; `argv[0]` is its name ([SWS_EM_01072]) |
+| `stateDependentStartupConfig` | The startup configurations, each for a set of Function Group States | `StateDependentStartupConfig` | `*` | Never started: the process references no state | No two of them reference the same state ([constr_3396]); all states of one Function Group ([constr_1688]) | [Section 13.4](#134-statedependentstartupconfig-and-executiondependency) |
+| `numberOfRestartAttempts` | How often EM retries a failed start-up during a transition | `PositiveInteger` | `0..1` | Start once, no retry (Table A.10: "0" or absent) | | `1` means one retry. Retries kill the process and do not fulfill `Terminated` dependencies ([SWS_EM_02260], [SWS_EM_02280]). See [Section 8.3](#83-timeouts-and-start-up-failures). |
+| `preMapping` | Whether the Executable is pre-loaded into memory | `Boolean` | `0..1` | Not specified (EM pre-maps only on `true`) | | Fully pre-mapped process, no demand-loading delays ([SWS_EM_02109]). See [Section 11.4](#114-process-level-memory-settings). |
+| `functionClusterAffiliation` | The functional cluster that the process belongs to | `String`; standardized values `STATE_MANAGEMENT` and `PLATFORM_HEALTH_MANAGEMENT` ([TPS_MANI_01337]) | `0..1` | Not specified | | Only a process with `STATE_MANAGEMENT` may use `StateClient` ([SWS_EM_02297]). See [Section 12.6](#126-function-group-access-control). |
+| `processStateMachine` | The Process States that other processes can depend on | `ModeDeclarationGroupPrototype`, typed by a group with the states `Running` and `Terminated` only | `0..1` | No other process can depend on this one | [SWS_EM_CONSTR_01744] | Target of `ExecutionDependency.processState` ([Section 13.4](#134-statedependentstartupconfig-and-executiondependency)) |
+
+The reference `design` to a `ProcessDesign` is not used by EM directly; it links the process to a design-level core affinity ([Section 13.8](#138-core-affinity-processtomachinemapping-and-processdesigntomachinedesignmapping)). A `Process` is meant for one Machine; its `StartupConfig`s can be reused ([TPS_MANI_01308]).
+
+### 13.4 StateDependentStartupConfig and ExecutionDependency
+
+**Purpose:** "in *these* states, start the process with *this* configuration, *these* dependencies and *these* resources". **Lives in:** Execution Manifest, inside the `Process`. **Configured by:** integrator of the Software Cluster. **Spec:** Tables A.2, A.15, A.19; TPS Section 10.3.
+
+| Attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `functionGroupState` | The Function Group States in which this configuration applies | Instance reference to `ModeDeclaration` | `*` | | At least one ([constr_3423]); never `Off` ([constr_3424]); the states are or-ed ([TPS_MANI_01046]); only Function Groups claimed by the process's Software Cluster ([constr_1787]) | EM starts the process when one of the states is requested ([SWS_EM_01066]). See [Section 8.2](#82-the-three-logical-steps). |
+| `startupConfig` | The start parameters | Reference to `StartupConfig` | `0..1` | | Shall exist ([constr_10176]) | [Section 13.5](#135-startupconfig) |
+| `resourceGroup` | The ResourceGroup of the process in these states | Reference to `ResourceGroup` | `0..1` | | Shall exist ([constr_10175]); exactly one, from the Machine Manifest ([constr_3413]) | EM configures the process according to its membership ([SWS_EM_02106]). See [Section 11.3](#113-resourcegroup-group-level-limits). |
+| `executionDependency` | Process States of other processes that must be reached before this process starts | `ExecutionDependency` | `*` | No ordering constraint | Same Function Group State on both sides ([constr_1689]); at most one state in this configuration ([constr_10411]); no mutual dependencies ([constr_1606]) | Start order and reverse termination order ([SWS_EM_01050], [SWS_EM_01051]). See [Chapter 6](#6-execution-dependencies-startup-and-shutdown-ordering). |
+| `ExecutionDependency.processState` | The Process State that the other process must reach | Instance reference to a `ModeDeclaration` in the other process's `processStateMachine`: `Running` or `Terminated` | `0..1` | | [SWS_EM_CONSTR_01744]; `Terminated` only on a self-terminating process ([SWS_EM_CONSTR_00001]) | [Section 6.2](#62-startup-and-termination-rules) |
+| `resourceConsumption.memoryUsage.memoryConsumption` | Maximum memory that the process itself may allocate | `PositiveInteger`, bytes; the sum of all `memoryUsage` elements counts ([TPS_MANI_01269]) | `0..1`, `*`, `0..1` | Not specified (no process-level limit is configured) | | EM configures the maximum memory usage ([SWS_EM_02108]). See [Section 11.4](#114-process-level-memory-settings). |
+
+**One configuration or several?** In the transition rules, "StartupConfig" means the `StateDependentStartupConfig` (Section 7.4.5 of the specification). A process whose states are listed in **one** `StateDependentStartupConfig` keeps running when its Function Group switches between these states. A process with **separate** `StateDependentStartupConfig` elements is restarted at that transition, even if both point to the same `StartupConfig` ([SWS_EM_02251]).
+
+> **Pitfall:** Adding an Execution Dependency to a process that runs in several states silently changes its restart behavior. [constr_10411] forces one `StateDependentStartupConfig` per state, so the process is now restarted at every transition between those states. `LoggerCompanion` in the running example is restarted at every `Normal` ↔ `Degraded` transition for exactly this reason.
+
+### 13.5 StartupConfig
+
+**Purpose:** a reusable set of start parameters. **Lives in:** Execution Manifest. **Configured by:** integrator of the Software Cluster, with values from the application developer. **Spec:** Tables A.11, A.18, A.20, A.21; TPS Sections 10.3 and 11.
+
+| Attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `processArgument` (ordered) `.argument` | Command-line arguments | `ProcessArgument` with `argument` (`String`) | `*` | Only `argv[0]` | `argument` shall exist ([constr_1769]) | `argv[1]` onwards, in modelled order ([SWS_EM_01012], [SWS_EM_01078]). See [Section 5.8](#58-signal-mask-arguments-and-environment-variables). |
+| `environmentVariable` | Environment variables of the process | `TagWithOptionalValue` with `key`, `value` | `*` | No process-specific variables | [TPS_MANI_01209] | Passed at process start ([SWS_EM_02246]); wins over the Machine value ([SWS_EM_02248]); a missing `value` gives an empty string ([SWS_EM_02249]) |
+| `schedulingPolicy` | Scheduling policy of the first thread | `String`; standardized `SCHED_FIFO`, `SCHED_RR`, `SCHED_OTHER` ([TPS_MANI_01328]); a custom value is allowed if it cannot clash with future standardized values | `0..1` | Not specified | Applies to the main thread ([TPS_MANI_01061]) | [SWS_EM_01014]. See [Section 11.5](#115-cpu-core-affinity-and-scheduling). |
+| `schedulingPriority` | Scheduling priority of the first thread | `Integer`; a higher value means a higher priority ([TPS_MANI_01188]) | `0..1` | Not specified | Positive ([constr_1692]); the valid range depends on the policy | [SWS_EM_01015] |
+| `terminationBehavior` | Whether the process may exit on its own | `TerminationBehaviorEnum`: `processIsNotSelfTerminating`, `processIsSelfTerminating` | `0..1` | Terminates only on request ([SWS_EM_01314]) | Required for a `Terminated` dependency target ([SWS_EM_CONSTR_00001]) | See [Section 5.6](#56-self-terminating-processes). |
+| `timeout.enterTimeoutValue` | Start-up timeout: time from process creation to `kRunning` | `TimeValue`, seconds | `0..1` | `Machine.defaultApplicationTimeout.enterTimeoutValue` ([TPS_MANI_01412]) | [TPS_MANI_01277] | Monitored ([SWS_EM_02253]); on expiry: kill, retry, then the transition fails ([SWS_EM_02260]). See [Section 8.3](#83-timeouts-and-start-up-failures). |
+| `timeout.exitTimeoutValue` | Termination timeout: time from `SIGTERM` to exit | `TimeValue`, seconds | `0..1` | `Machine.defaultApplicationTimeout.exitTimeoutValue` ([TPS_MANI_03151]) | [TPS_MANI_01278] | Monitored ([SWS_EM_01065]); on expiry: forced termination, the transition continues ([SWS_EM_02255]) |
+| `permissionToCreateChildProcess` | Whether the process may create child processes | `Boolean` | `0..1` | `false` ([SWS_EM_02558]) | | EM restricts the process ([SWS_EM_02559]). See [Section 5.10](#510-child-processes). |
+| `processExecutionError` | The `ExecutionError` value reported to State Management when this process fails | Reference to an `ApApplicationError` (status draft) | `0..1` | Value `1` ([SWS_EM_02543]) | | In `ExecutionErrorEvent` and `GetExecutionError` ([SWS_EM_02542]). See [Section 14.6](#146-executionerrorevent-and-executionerror). |
+
+**Which number is reported?** `processExecutionError` references an `ApApplicationError`, while `ExecutionError` is a plain `std::uint32_t`. Neither the EM specification nor the TPS says explicitly how one becomes the other. This series reads it as the `errorCode` of the referenced application error, so `FusionFailed` (code 42) is reported as `42`. Check your vendor's documentation.
+
+`timeout` is an `EnterExitTimeout` with the two values. The specification of EM mentions only the Machine default of the termination timeout (Section 7.4.5); the Machine default of the start-up timeout comes from the TPS. To be independent of this difference, set both values whenever you set `timeout`.
+
+> **Pitfall:** Timeouts are in **seconds** (`TimeValue`). A termination timeout of 500 ms is written `0.5`, not `500`.
+
+### 13.6 Machine
+
+**Purpose:** the machine-wide settings. **Lives in:** Machine Manifest. **Configured by:** integrator of the Machine. **Spec:** Table A.5; TPS Section 11.
+
+| Attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `defaultApplicationTimeout` | Default start-up and termination timeouts | `EnterExitTimeout` with `enterTimeoutValue`, `exitTimeoutValue` (`TimeValue`, seconds) | `0..1` | | Shall exist with both values ([constr_10430], [constr_10431], [constr_10432]) | Used for every `StartupConfig` without its own timeout ([TPS_MANI_01412], [TPS_MANI_03151]) |
+| `environmentVariable` | Environment variables for all processes of the Machine | `TagWithOptionalValue` (splitable) | `*` | No machine-wide variables | [TPS_MANI_01208] | Passed at every process start ([SWS_EM_02247]); a process value with the same key wins |
+| `trustedPlatformExecutableLaunchBehavior` | How a failed integrity or authenticity check affects launching | `TrustedPlatformExecutableLaunchBehaviorEnum`: `strictMode`, `monitorMode`, `noTrustedPlatformSupport` | `0..1` | | Shall exist ([constr_10170]); [TPS_MANI_01273] | Selects the mode ([SWS_EM_02305]). See [Section 12.3](#123-launch-behavior-modes). |
+| `processor` | The processors and their cores | `Processor` with `core` (`ProcessorCore` with `coreId`, `PositiveInteger`) | `*` | | At least one ([constr_10171]); `core` and `coreId` shall exist ([constr_10172], [constr_10173]) | Targets of core affinity ([Section 13.8](#138-core-affinity-processtomachinemapping-and-processdesigntomachinedesignmapping)) |
+| `moduleInstantiation` | Configuration of the platform modules, among them the OS | `AdaptiveModuleInstantiation`, for EM the `OsModuleInstantiation` | `*` | | The `OsModuleInstantiation` defines at least one `resourceGroup` ([constr_1661]) | [Section 13.7](#137-resourcegroup) |
+
+Environment variables of the Machine can come from several partial models, because the aggregation is splitable. If several contributions define the same `key`, the optional `TagWithOptionalValue.sequenceOffset` gives the order in which their values are concatenated, for example for a `PATH`-like variable (Table A.20). The other attributes of `Machine`, such as `machineDesign`, are not used by EM; [guide 02, Section 12.9](02_Manifests.md#129-machine) lists them.
+
+### 13.7 ResourceGroup
+
+**Purpose:** limits for a group of processes. **Lives in:** Machine Manifest, aggregated by the `OsModuleInstantiation`. **Configured by:** integrator of the Machine. **Spec:** Table A.16; TPS Section 12.
+
+| Attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `cpuUsage` | CPU limit for all processes of the group together | `PositiveInteger`, percent of the total CPU capacity of the Machine | `0..1` | Only implicit limits: priority and scheduling scheme (note after [SWS_EM_02103]) | | Configured before the first process of the group is loaded ([SWS_EM_02103]) |
+| `memUsage` | RAM limit for all processes of the group together | `PositiveInteger`, bytes | `0..1` | Only the implicit memory limit (note after [SWS_EM_02102]) | | Configured before the first process of the group is loaded ([SWS_EM_02102]) |
+
+A ResourceGroup limits a *group*; `resourceConsumption` of [Section 13.4](#134-statedependentstartupconfig-and-executiondependency) limits a single *process*. [Section 11.7](#117-mapping-to-os-mechanisms) shows how a Linux implementation might enforce both.
+
+### 13.8 Core Affinity: ProcessToMachineMapping and ProcessDesignToMachineDesignMapping
+
+**Purpose:** put a process on its Machine and, optionally, restrict the cores of its first thread. **Lives in:** Execution Manifest (`ProcessToMachineMapping`); system design (`ProcessDesignToMachineDesignMapping`). **Configured by:** integrator of the Software Cluster; system designer for the design level. **Spec:** Tables A.12, A.13; TPS Sections 6.2.2 and 11.3.
+
+| Attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `ProcessToMachineMapping.process`, `.machine` | The process and the Machine it runs on | References | `0..1` each | | Both shall exist ([constr_10174], [constr_10658]); exactly one mapping per process ([constr_5004], [constr_1553]) | EM of that Machine manages the process |
+| `ProcessToMachineMapping.shallRunOn` | The cores the first thread may run on | References to `ProcessorCore` | `*` | Not specified | Cores of the mapped Machine ([constr_3393]) and of one processor ([constr_1676]); not together with `shallNotRunOn` ([constr_1677]) | Core affinity of the first thread ([SWS_EM_02104]) |
+| `ProcessToMachineMapping.shallNotRunOn` | The cores the first thread must not run on | References to `ProcessorCore` | `*` | Not specified | As above | As above |
+| `ProcessDesignToMachineDesignMapping.shallRunOn`, `.shallNotRunOn` | The same, at design level, for a `ProcessDesign` | References to `ProcessorCore` | `*` each | Not specified | Not both ([constr_10662]); [TPS_MANI_01477] | The deployment level wins if both are configured ([SWS_EM_02596]) |
+
+Without `shallRunOn` or `shallNotRunOn`, EM has no core restriction to configure, and the OS places the thread. If the OS cannot bind threads to cores, the full set of cores is the only supported subset ([Section 11.5](#115-cpu-core-affinity-and-scheduling)). `HPC` configures no core affinity.
+
+### 13.9 Function Groups and Software Clusters
+
+**Purpose:** the state machines that switch processes, and the installable units that own them. **Lives in:** Machine Manifest (`MachineFG`), Execution Manifest (application Function Groups), Software Cluster (claims). **Configured by:** integrator. **Spec:** Tables A.7, A.8, A.17; TPS Sections 10.4 and 16.3; [guide 02, Section 7.5](02_Manifests.md#75-function-groups-and-their-states).
+
+| Element.attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `FunctionGroupSet.functionGroup` | The Function Groups | `ModeDeclarationGroupPrototype`, typed by a `ModeDeclarationGroup` ([TPS_MANI_03145]) | `*` | | Exactly one `MachineFG` per Machine with `Off`, `Verify`, `Startup`, `Shutdown`, `Restart` ([SWS_EM_CONSTR_02556]) | Groups that `SetState` can switch; independent of each other for EM ([Section 7.2](#72-function-groups-and-function-group-states)) |
+| `ModeDeclarationGroup.modeDeclaration` | The states | `ModeDeclaration`, identified by its short name | `*` | | `Off` ([TPS_MANI_03195]) and `Verify` ([constr_10023]) in every group | The states that `FunctionGroupState` names ([Section 14.4](#144-functiongroup-and-functiongroupstate)) |
+| `ModeDeclarationGroup.initialMode` | The state before the first transition | Reference to `ModeDeclaration` | `0..1` | | Shall be `Off` ([TPS_MANI_03195]) | EM uses `Off` as the initial state ([SWS_EM_01110]) |
+| `SoftwareCluster.claimedFunctionGroup` | The Function Groups that this cluster owns | References to `ModeDeclarationGroupPrototype` | `*` | | A group is claimed by at most one cluster ([constr_1786]); `MachineFG` only by the `PLATFORM_CORE` cluster ([SWS_EM_CONSTR_02557]) | EM takes the Machine States from the `PLATFORM_CORE` cluster ([SWS_EM_01032]) |
+| `SoftwareCluster.containedProcess` | The processes of this cluster | References to `Process` | `*` | | They use only claimed groups ([constr_1787]); exactly one `PLATFORM_CORE` cluster per Machine ([constr_1788]) | |
+
+Two rules span several elements. At least one process must reference `MachineFG.Shutdown` and at least one `MachineFG.Restart` ([SWS_EM_CONSTR_02558], [SWS_EM_CONSTR_02559]); that process performs the actual shutdown or restart ([Section 9.4](#94-shutdown-and-restart)). And the State Management process must reference every Machine State except `Off` ([SWS_SM_CONSTR_00001]).
+
+AUTOSAR publishes the mandatory states of `MachineFG` as a standardized model (`AUTOSAR_MOD_GeneralDefinition_MachineFG.arxml`). [Guide 02, Section 7.5](02_Manifests.md#75-function-groups-and-their-states) explains why the running example defines its own group with the project state `Driving`.
+
+### 13.10 State Management Access: StateClientInterface and FunctionGroupPortMapping
+
+**Purpose:** give exactly one State Management process the right to control a Function Group. **Lives in:** the application design of the State Management executable (the port) and the State Management configuration (the mapping, TPS Section 12.14.6). **Configured by:** integrator. **Spec:** Table A.4; TPS Section 12.14.6. Both meta-classes have the status *draft* in R25-11.
+
+The following diagram shows how the elements connect for the Function Group `ADAS` of the running example:
+
+```mermaid
+flowchart LR
+    subgraph EXE["Executable state_manager"]
+        PORT["R-port AdasFgPort<br/>typed by StateClientInterface AdasStateClient"]
+    end
+    MAP["FunctionGroupPortMapping<br/>StateManagerToADAS"]
+    PROC["Process StateManager<br/>functionClusterAffiliation = STATE_MANAGEMENT"]
+    FG["Function Group ADAS"]
+    MAP -->|"rPortPrototypeInExecutable"| PORT
+    MAP -->|"process"| PROC
+    MAP -->|"functionGroup"| FG
+    PORT -.->|"functionGroupType: same ModeDeclarationGroup"| FG
+```
+
+The code names the port; the mapping names the Function Group. That is how `FunctionGroup{InstanceSpecifier{"/state_manager/Root/AdasFgPort"}}` ends up meaning `ADAS` ([SWS_EM_02586]).
+
+| Element.attribute | Meaning | Type and values | Mult. | If absent | Rules | Effect at run time |
+| --- | --- | --- | --- | --- | --- | --- |
+| `StateClientInterface.functionGroupType` | The states that can be requested over a port of this interface | Reference to `ModeDeclarationGroup` | `0..1` | | Shall exist ([constr_10616]); [TPS_MANI_01473] | |
+| `FunctionGroupPortMapping.functionGroup` | The Function Group that the port controls | Reference to `ModeDeclarationGroupPrototype` | `0..1` | | Shall exist ([constr_10617]); one mapping per Function Group ([constr_10620], [SWS_EM_CONSTR_02560]); same `ModeDeclarationGroup` as the port's interface ([constr_10621]) | Without a mapping, `SetState` and `GetExecutionError` return `kInvalidMetaModelIdentifier` ([SWS_EM_02584]); for `MachineFG` also `GetInitialMachineStateTransitionResult` ([SWS_EM_02583]) |
+| `FunctionGroupPortMapping.process` | The State Management process | Reference to `Process` | `0..1` | | Shall exist ([constr_10618]) | |
+| `FunctionGroupPortMapping.rPortPrototypeInExecutable` | The R-port in the executable | Instance reference to `RPortPrototype` | `0..1` | | Shall exist ([constr_10619]); one mapping per port and process ([constr_10622]) | The port that the `InstanceSpecifier` of `FunctionGroup` names ([SWS_EM_02586]) |
+
+The process also needs `functionClusterAffiliation = STATE_MANAGEMENT` ([Section 13.3](#133-process)). [Section 12.6](#126-function-group-access-control) shows the checks in the order in which EM applies them.
+
+### 13.11 The Running Example: Complete Configuration
+
+The following conceptual view is the complete EM configuration of `HPC`. Values that guide 00 does not fix, such as the scheduling of `CameraDriver`, are illustrative. [Guide 02, Section 12.16](02_Manifests.md#1216-the-running-example-complete-configuration) shows the real, validated ARXML of the `Machine`, the Function Groups and the processes `CameraDriver` and `Fusion`.
+
+```yaml
+# Conceptual view of the EM configuration of HPC. NOT real ARXML syntax.
+
+Machine HPC:                                             # Machine Manifest (HpcPlatformCore)
+  trustedPlatformExecutableLaunchBehavior: strictMode
+  defaultApplicationTimeout: { enter: 2s, exit: 1s }     # used where a StartupConfig sets no timeout
+  environmentVariable: [ "LOG_LEVEL=info", "TZ=UTC" ]
+  processor: Soc { cores: [ Core0, Core1, Core2, Core3 ] }
+  OsModuleInstantiation Os:
+    resourceGroup:
+      platform_rg: { cpuUsage: 20, memUsage: 536870912 }   # 20 % CPU, 512 MiB
+      adas_rg:     { cpuUsage: 60, memUsage: 2147483648 }  # 60 % CPU, 2 GiB
+      legacy_rg:   { cpuUsage: 10, memUsage: 268435456 }   # 10 % CPU, 256 MiB: isolates the third-party binary
+
+FunctionGroups:                                          # initial state: Off
+  MachineFG: [ Off, Startup, Driving, Shutdown, Restart, Verify ]
+  ADAS:      [ Off, Normal, Degraded, Verify ]
+ModeDeclarationGroup ProcessStates: [ Running, Terminated ]   # type of every processStateMachine
+
+SoftwareCluster HpcPlatformCore:                         # category PLATFORM_CORE
+  claimedFunctionGroup: [ MachineFG ]
+  containedProcess: [ StateManager, PlatformHealth, PowerControl ]
+SoftwareCluster AdasCluster:                             # category APPLICATION_LAYER
+  claimedFunctionGroup: [ ADAS ]
+  containedProcess: [ Storage, CameraDriver, CalibrationCheck, LegacyLogger, LoggerCompanion, Fusion, FusionLite ]
+
+Executable legacy_logger: { reportingBehavior: doesNotReportExecutionState }
+# All other executables omit reportingBehavior: their processes report kRunning.
+
+StartupConfig platform_cfg:    { }                       # nothing set: Machine timeouts, OS scheduling
+StartupConfig storage_cfg:     { timeout: { enter: 2s, exit: 3s } }   # illustrative: time to flush recordings
+StartupConfig camera_cfg:      { schedulingPolicy: SCHED_FIFO, schedulingPriority: 50 }   # illustrative
+StartupConfig calib_cfg:       { terminationBehavior: processIsSelfTerminating }
+StartupConfig legacy_cfg:      { environmentVariable: [ "LOGGER_QUIET" ] }   # illustrative; no value: ""
+StartupConfig companion_cfg:   { }
+StartupConfig fusion_cfg:
+  processArgument: [ "--mode", "full" ]                  # argv = { "fusion", "--mode", "full" }
+  environmentVariable: [ "LOG_LEVEL=debug" ]             # overrides the machine-wide value
+  schedulingPolicy: SCHED_FIFO
+  schedulingPriority: 40
+  terminationBehavior: processIsNotSelfTerminating
+  timeout: { enter: 3s, exit: 500ms }
+  permissionToCreateChildProcess: false
+  processExecutionError: FusionFailed                    # error code 42 of AdasExecutionErrors
+StartupConfig fusion_lite_cfg: { schedulingPolicy: SCHED_FIFO, schedulingPriority: 40 }   # illustrative
+
+Process StateManager:
+  executable: state_manager
+  functionClusterAffiliation: STATE_MANAGEMENT
+  stateDependentStartupConfig:
+    - functionGroupState: [ MachineFG.Startup, MachineFG.Driving, MachineFG.Shutdown, MachineFG.Restart, MachineFG.Verify ]
+      startupConfig: platform_cfg
+      resourceGroup: platform_rg
+Process PlatformHealth:                                  # same states, config and group as StateManager
+  executable: platform_health
+  functionClusterAffiliation: PLATFORM_HEALTH_MANAGEMENT
+Process PowerControl:
+  executable: power_control
+  stateDependentStartupConfig:
+    - { functionGroupState: [ MachineFG.Shutdown, MachineFG.Restart ], startupConfig: platform_cfg, resourceGroup: platform_rg }
+
+Process Storage:
+  executable: storage
+  processStateMachine: ProcessStates                     # CalibrationCheck depends on it
+  stateDependentStartupConfig:
+    - { functionGroupState: [ ADAS.Normal, ADAS.Degraded ], startupConfig: storage_cfg, resourceGroup: adas_rg }
+Process CameraDriver:
+  executable: camera_driver
+  stateDependentStartupConfig:
+    - { functionGroupState: [ ADAS.Normal, ADAS.Degraded ], startupConfig: camera_cfg, resourceGroup: adas_rg }
+Process CalibrationCheck:
+  executable: calib_check
+  processStateMachine: ProcessStates                     # Fusion depends on it
+  stateDependentStartupConfig:
+    - { functionGroupState: [ ADAS.Normal ], startupConfig: calib_cfg, resourceGroup: adas_rg,
+        executionDependency: [ Storage.Running ] }
+Process LegacyLogger:
+  executable: legacy_logger
+  processStateMachine: ProcessStates                     # LoggerCompanion depends on it
+  stateDependentStartupConfig:
+    - { functionGroupState: [ ADAS.Normal, ADAS.Degraded ], startupConfig: legacy_cfg, resourceGroup: legacy_rg }
+Process LoggerCompanion:
+  executable: logger_companion
+  processStateMachine: ProcessStates                     # Fusion and FusionLite depend on it
+  stateDependentStartupConfig:                           # one per state, because of the dependency
+    - { functionGroupState: [ ADAS.Normal ],   startupConfig: companion_cfg, resourceGroup: adas_rg,
+        executionDependency: [ LegacyLogger.Running ] }
+    - { functionGroupState: [ ADAS.Degraded ], startupConfig: companion_cfg, resourceGroup: adas_rg,
+        executionDependency: [ LegacyLogger.Running ] }
+Process Fusion:
+  executable: fusion
+  numberOfRestartAttempts: 1
+  stateDependentStartupConfig:
+    - { functionGroupState: [ ADAS.Normal ], startupConfig: fusion_cfg, resourceGroup: adas_rg,
+        executionDependency: [ CalibrationCheck.Terminated, LoggerCompanion.Running ],
+        resourceConsumption: { memoryUsage: 1073741824 } }      # 1 GiB
+Process FusionLite:
+  executable: fusion_lite
+  stateDependentStartupConfig:
+    - { functionGroupState: [ ADAS.Degraded ], startupConfig: fusion_lite_cfg, resourceGroup: adas_rg,
+        executionDependency: [ LoggerCompanion.Running ] }
+
+ProcessToMachineMapping: one per process, all to HPC, no shallRunOn or shallNotRunOn
+
+StateClientInterface MachineFgStateClient: { functionGroupType: MachineFG_States }
+StateClientInterface AdasStateClient:      { functionGroupType: ADAS_States }
+Executable state_manager, root prototype Root:
+  R-ports: [ MachineFgPort: MachineFgStateClient, AdasFgPort: AdasStateClient ]
+FunctionGroupPortMapping StateManagerToMachineFG: { process: StateManager, port: MachineFgPort, functionGroup: MachineFG }
+FunctionGroupPortMapping StateManagerToADAS:      { process: StateManager, port: AdasFgPort,    functionGroup: ADAS }
+```
+
+Each value has a reason:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| Trusted-platform mode | `strictMode` | A production configuration: software that fails its check is never started ([Section 12.3](#123-launch-behavior-modes)). |
+| Default timeouts | 2 s start-up, 1 s termination | Used by every process whose `StartupConfig` sets no timeout: the platform daemons and most ADAS processes. `Storage` and `Fusion` set their own. |
+| `legacy_rg` | 10 % CPU, 256 MiB | The third-party binary cannot be fixed, so it is isolated. |
+| One `StateDependentStartupConfig` for `Normal` and `Degraded` | `Storage`, `CameraDriver`, `LegacyLogger` | They keep running when `ADAS` switches between the two states ([Section 7.2](#72-function-groups-and-function-group-states)). |
+| Two `StateDependentStartupConfig`s | `LoggerCompanion` | Forced by its dependency ([constr_10411]); it is restarted at every `Normal` ↔ `Degraded` transition. |
+| `processStateMachine` | `Storage`, `CalibrationCheck`, `LegacyLogger`, `LoggerCompanion` | Only these four are dependency targets. |
+| `terminationBehavior: processIsSelfTerminating` | `calib_cfg` | `Fusion` waits for `CalibrationCheck` to *terminate*, which requires a self-terminating process ([SWS_EM_CONSTR_00001]). |
+| `numberOfRestartAttempts: 1` | `Fusion` | One retry before the transition to `ADAS.Normal` fails. |
+| `processExecutionError: FusionFailed` | `fusion_cfg` | State Management sees `ExecutionError` 42 and chooses `ADAS.Degraded` ([Section 16.3](#163-phase-3-a-process-crashes)). Other processes report the value `1`. |
+| `storage_cfg` termination timeout | 3 s | `Storage` flushes the recordings before it exits. |
+| `PowerControl` in `Shutdown` and `Restart` | | Satisfies [SWS_EM_CONSTR_02558] and [SWS_EM_CONSTR_02559]; powers the machine off or reboots it ([Section 9.4](#94-shutdown-and-restart)). |
+| `StateManager` in every Machine State except `Off` | | Somebody must always be able to request the next state ([SWS_SM_CONSTR_00001]). |
+| Two `FunctionGroupPortMapping`s | `MachineFG`, `ADAS` | `StateManager` controls both groups and is the only process that does. |
+| No process in `ADAS.Verify` | | Guide 13 (`13_UpdateAndConfigManagement.md`, planned) decides what runs during the verification of an update. |
+
+> **Key takeaways**
+>
+> - EM defines no default values. When an attribute is absent, the behavior comes from a specific requirement or from the TPS, and sometimes it is simply not specified.
+> - The mandatory minimum: the Machine with its timeouts, trusted-platform mode, processors and ResourceGroups; `MachineFG` and `Verify` in every Function Group; Software Clusters; one `StateDependentStartupConfig` with states, `StartupConfig` and ResourceGroup per process configuration; one `ProcessToMachineMapping` per process.
+> - Whether a process restarts at a transition depends on its `StateDependentStartupConfig` elements, not on its `StartupConfig`.
+> - Execution Dependencies need a `processStateMachine` on the target, stay within one state, and force separate configurations per state.
+> - State Management needs `STATE_MANAGEMENT`, an R-port typed by a `StateClientInterface`, and one `FunctionGroupPortMapping` per Function Group.
+
+---
+
+## 14. API Reference and Usage Guide (ara::exec)
 
 > **Why this matters:** The `ara::exec` API is small: two client classes, two identifier classes, one event struct and the error types. Its *rules*, however, such as single instances, access rights and lifetimes, are easy to break. This chapter explains every API element, how it relates to the concepts of the previous chapters, and how to use it correctly. All declarations follow Chapter 8 of the R25-11 specification. The code examples are illustrative, so check your vendor's headers for details.
 
-### 13.1 API Overview
+### 14.1 API Overview
 
 | Header | Contents | Typical user |
 | --- | --- | --- |
@@ -2024,7 +2276,7 @@ flowchart TD
 | `ara/exec/exec_error_domain.h` | `ExecErrc`, `ExecErrorDomain`, `ExecException`, `GetExecErrorDomain`, `MakeErrorCode` | All users |
 | `ara/exec/exec_fwd.h` | Forward declarations | All users |
 
-All symbols live in the namespace `ara::exec`. EM's API initialization and deinitialization are part of `ara::core::Initialize()` and `ara::core::Deinitialize()` ([SWS_EM_02557]), so call `Initialize()` first and `Deinitialize()` last.
+All symbols live in the namespace `ara::exec`. EM's API initialization and deinitialization are part of `ara::core::Initialize(argc, argv)` and `ara::core::Deinitialize()` ([SWS_EM_02557]), so call `Initialize` first and `Deinitialize` last ([Section 9.5](#95-functional-cluster-lifecycle-of-the-araexec-library)).
 
 ```mermaid
 classDiagram
@@ -2062,7 +2314,7 @@ classDiagram
     ExecutionErrorEvent --> FunctionGroup : affected group
 ```
 
-### 13.2 ExecutionState
+### 14.2 ExecutionState
 
 ```cpp
 // #include "ara/exec/execution_client.h"
@@ -2077,7 +2329,7 @@ enum class ExecutionState : std::uint32_t {
 
 `ExecutionState` contains only the states that a process can *report* ([SWS_EM_02000]). *Initializing* and *Terminating* are not part of the enumeration. EM assumes that a process is initializing until it reports `kRunning`, and that it is terminating from the moment EM requests termination until the process exits.
 
-### 13.3 ExecutionClient
+### 14.3 ExecutionClient
 
 **Purpose:** lets a process report its Execution State to EM and receive EM's termination request ([SWS_EM_02001]). **Used by:** every reporting process, both applications and platform daemons.
 
@@ -2208,17 +2460,21 @@ int Run() {
 
 }  // namespace
 
-int main() {
-    if (!ara::core::Initialize().HasValue()) {  // before any ara::exec usage
+int main(int argc, char* argv[]) {
+    // Before any ara::exec usage. Initialize may remove platform options from argv.
+    if (!ara::core::Initialize(argc, argv).HasValue()) {
         return EXIT_FAILURE;
     }
     const int exitCode = Run();
-    ara::core::Deinitialize();                   // after the last ara::exec usage
+    // After the last ara::exec usage.
+    if (!ara::core::Deinitialize().HasValue()) {
+        return EXIT_FAILURE;
+    }
     return exitCode;  // 0 = normal termination; anything else = Abnormal Termination
 }
 ```
 
-### 13.4 FunctionGroup and FunctionGroupState
+### 14.4 FunctionGroup and FunctionGroupState
 
 **Purpose:** these two classes are lightweight, implementation-specific representations of a Function Group ([SWS_EM_02263]) and a Function Group State ([SWS_EM_02269]) as defined in the manifest. Once an object has been created for a manifest element, it stays bound to that element for its entire lifetime. Qualified short names can be long, so implementations may store an optimized internal representation that speeds up the checks in `SetState`. **Used by:** State Management.
 
@@ -2275,7 +2531,7 @@ public:
 
 > **Note:** Releases up to R23-11 provided named constructors `FunctionGroup::Create` and `FunctionGroupState::Create` that returned an `ara::core::Result`. They were removed in R24-11. The overview figure in Chapter 5 of the specification still shows `Create()`, but the normative API in Chapter 8 uses the constructors shown above. As a safe practice, keep a `FunctionGroup` object alive as long as the `FunctionGroupState` objects created from it are in use.
 
-### 13.5 StateClient
+### 14.5 StateClient
 
 **Purpose:** the interface of EM through which State Management requests Function Group State transitions and performs related operations ([SWS_EM_02275]). To start software, SM requests a transition to a state in which that software is configured. To stop software, SM requests a state in which the software is not configured. Internally, `StateClient` opens a communication channel to EM, for example a POSIX FIFO. **Used by:** State Management only.
 
@@ -2404,9 +2660,11 @@ void RunStateManagement() {
     }
 
     // 2. Handles for the Function Groups this process may control. The instance specifiers
-    //    name R-ports that FunctionGroupPortMappings connect to the groups (example paths).
-    ara::exec::FunctionGroup machineFg{ara::core::InstanceSpecifier{"StateManager/Root/MachineFgPort"}};
-    ara::exec::FunctionGroup adasFg{ara::core::InstanceSpecifier{"StateManager/Root/AdasFgPort"}};
+    //    name R-ports of the executable state_manager that FunctionGroupPortMappings connect
+    //    to the groups (Section 13.10). The InstanceSpecifier constructor throws on a
+    //    syntax error; InstanceSpecifier::Create returns a Result instead.
+    ara::exec::FunctionGroup machineFg{ara::core::InstanceSpecifier{"/state_manager/Root/MachineFgPort"}};
+    ara::exec::FunctionGroup adasFg{ara::core::InstanceSpecifier{"/state_manager/Root/AdasFgPort"}};
 
     ara::exec::FunctionGroupState machineDriving{machineFg, "Driving"};
     ara::exec::FunctionGroupState adasNormal{adasFg, "Normal"};
@@ -2442,7 +2700,7 @@ void RunStateManagement() {
 
 > **Tip:** Production State Management code should not block forever in `GetResult()`. Use `wait_for()` on the future, or a continuation with `then()`, together with a project-specific timeout. This also protects against the `Terminated`-dependency deadlock described in [Section 6.7](#67-pitfall-deadlock-with-terminated-dependencies).
 
-### 13.6 ExecutionErrorEvent and ExecutionError
+### 14.6 ExecutionErrorEvent and ExecutionError
 
 ```cpp
 // #include "ara/exec/execution_error_event.h"
@@ -2461,7 +2719,7 @@ struct ExecutionErrorEvent final {
 - `ExecutionError` ([SWS_EM_02541]) is a plain number. Its value comes from the failing process's `StartupConfig.processExecutionError`, or is `1` if none is configured ([SWS_EM_02543]). Integrators can assign distinct values per process, which lets State Management select a recovery strategy.
 - `ExecutionErrorEvent` ([SWS_EM_02544], [SWS_EM_02545], [SWS_EM_02546]) contains a `FunctionGroup`, which is not copyable, so the event itself cannot be copied either. Inside the callback, copy `executionError`, and identify the Function Group by comparing `functionGroup` with your own `FunctionGroup` objects using `operator==`.
 
-### 13.7 Error Handling Types
+### 14.7 Error Handling Types
 
 ```cpp
 // #include "ara/exec/exec_error_domain.h"
@@ -2507,7 +2765,7 @@ ara::core::ErrorCode MakeErrorCode(ara::exec::ExecErrc code,
 | `GetExecErrorDomain()` | Returns a reference to the global `ExecErrorDomain` object | [SWS_EM_02290] |
 | `MakeErrorCode()` | Creates an `ara::core::ErrorCode` from an `ExecErrc` value and vendor-defined support data | [SWS_EM_02291] |
 
-### 13.8 Thread Safety and Exception Safety Summary
+### 14.8 Thread Safety and Exception Safety Summary
 
 R25-11 added a thread-safety assessment for every API. *Thread-safe* means that the function may be called concurrently from different threads. *Not thread-safe* means that the caller must serialize the calls (see [SWS_CORE_13200]).
 
@@ -2529,7 +2787,7 @@ R25-11 added a thread-safety assessment for every API. *Thread-safe* means that 
 | `ExecErrorDomain::ThrowAsException` | no (`noexcept(false)`) | not exception safe | thread-safe |
 | `ExecException` constructor | yes | exception safe | thread-safe |
 
-### 13.9 Common API Pitfalls
+### 14.9 Common API Pitfalls
 
 1. **Two `ExecutionClient` or two `StateClient` objects in one process.** This is a violation, and the process is terminated.
 2. **Reporting `kRunning` twice.** The second call returns `kInvalidTransition`. It is harmless, but it indicates a logic error.
@@ -2537,7 +2795,7 @@ R25-11 added a thread-safety assessment for every API. *Thread-safe* means that 
 4. **Installing your own `SIGTERM` handler or unblocking signals.** This interferes with `ExecutionClient`. Use the termination handler.
 5. **Doing the whole shutdown inside the termination handler.** The handler is a notification. Wake up the main logic and clean up there, within the termination timeout.
 6. **Dangling handlers or callbacks.** A lambda that captures `this`, or an `std::bind` to an object that is destroyed before the client object, leads to undefined behavior.
-7. **Using `ara::exec` before `ara::core::Initialize()` or after `ara::core::Deinitialize()`.** The behavior is implementation-defined.
+7. **Using `ara::exec` before `ara::core::Initialize` or after `ara::core::Deinitialize`.** The behavior is implementation-defined. Also note that `Initialize()` without arguments no longer exists in R25-11; call `Initialize(argc, argv)`.
 8. **Reporting `kRunning` too late,** for example only after all required services have been found. This delays every dependent process and risks the start-up timeout.
 9. **Using `StateClient` in a process that is not State Management.** This is a violation, because `functionClusterAffiliation` must be `STATE_MANAGEMENT`.
 10. **Wrong port or state names.** The constructors do not complain. The error appears later as `kInvalidMetaModelIdentifier`.
@@ -2545,6 +2803,7 @@ R25-11 added a thread-safety assessment for every API. *Thread-safe* means that 
 12. **Treating `kOperationCanceled` as a failure.** It only means that a newer request replaced this one.
 13. **Expecting EM to restart a crashed process.** EM reports the crash. Recovery is State Management's job.
 14. **Porting old code that uses `DeterministicClient` or `FunctionGroup::Create`.** Both were removed in R24-11 (see [Appendix D](#appendix-d-notable-changes-in-recent-releases)).
+15. **Two `FunctionGroup` objects from the same instance specifier.** A constructor of the ARA framework that is called with an instance specifier already in use in the process is a violation, `InstanceSpecifierAlreadyInUseViolation` ([SWS_CORE_13006]). Create one `FunctionGroup` per port and keep it, together with the `FunctionGroupState` objects built from it.
 
 > **Key takeaways**
 >
@@ -2555,11 +2814,11 @@ R25-11 added a thread-safety assessment for every API. *Thread-safe* means that 
 
 ---
 
-## 14. Logging, Tracing and Reporting
+## 15. Logging, Tracing and Reporting
 
 > **Why this matters:** When something goes wrong in the field, EM's messages are often the only record of what happened. These messages are standardized, so you can look for the same messages on every compliant platform.
 
-### 14.1 Reporting Channels
+### 15.1 Reporting Channels
 
 | Channel | Receiver | Content | Spec |
 | --- | --- | --- | --- |
@@ -2568,9 +2827,9 @@ R25-11 added a thread-safety assessment for every API. *Thread-safe* means that 
 | Security events | Intrusion Detection System Manager | Failed integrity checks (see [Section 12.4](#124-security-events)) | [SWS_EM_02588] to [SWS_EM_02591] |
 | Production errors (diagnostic events) | Diagnostic Management | **None.** EM defines no production errors. | Section 7.9.4 |
 
-*Non-verbose* means that a message carries a message ID and the argument values, while the texts and argument types are described in a model. This makes the messages efficient to transmit, and the tools decode them. All of these messages have the status DRAFT in R25-11, so details may still change in later releases. Messages marked "if logging is activated" in the specification are emitted only when logging is enabled.
+*Non-verbose* means that a message carries a message ID and the argument values, while the texts and argument types are described in a model. This makes the messages efficient to transmit, and the tools decode them. All of these messages have the status DRAFT in R25-11, so details may still change in later releases. Messages marked "if logging is activated" in the specification are emitted only when logging is enabled. How DLT messages are transported, filtered and decoded is the topic of guide 10 (`10_LogAndTrace.md`, planned).
 
-### 14.2 Process Lifecycle Trace Messages
+### 15.2 Process Lifecycle Trace Messages
 
 These messages have the message type `DLT_TRACE_VFB`. Together they allow a timing analysis of every process.
 
@@ -2581,7 +2840,7 @@ These messages have the message type `DLT_TRACE_VFB`. Together they allow a timi
 | `ProcessTerminationRequest` | `0x80004003` | When EM requests a process to terminate, that is, sends `SIGTERM` | The text "Execution Management requested to terminate", `posixProcessId` | [SWS_EM_02571], [SWS_EM_02575] |
 | `ProcessTerminated` | `0x80004004` | When a process has terminated, whether successfully or not | `posixProcessId`, the text "is terminated" | [SWS_EM_02572], [SWS_EM_02576] |
 
-### 14.3 Error Log Messages
+### 15.3 Error Log Messages
 
 These messages have the message type `DLT_LOG_ERROR`.
 
@@ -2592,7 +2851,7 @@ These messages have the message type `DLT_LOG_ERROR`.
 | `FailedIntegrityOrAuthenticityCheck` | `0x80004007` | An integrity or authenticity check failed, for the machine configuration, an executable, shared objects or manifests | The text "Integrity or authenticity check failed for process", `modeledProcessId`, `errorCode` (`uint32`, implementation-defined details) | [SWS_EM_02594]; emitted under [SWS_EM_02552], [SWS_EM_02556] |
 | `ProcessTerminationTimeout` | `0x80004008` | The termination of a process ran into the termination timeout | The text "Process termination timeout happened for PID", `posixProcessId` | [SWS_EM_02595]; emitted under [SWS_EM_02258] |
 
-### 14.4 Violation Messages
+### 15.4 Violation Messages
 
 These messages have the message type `DLT_LOG_FATAL`. A violation terminates the offending process (see [Section 10.1](#101-errors-and-violations)).
 
@@ -2605,7 +2864,7 @@ These messages have the message type `DLT_LOG_FATAL`. A violation terminates the
 
 `location` is an implementation-defined identifier of the place where the violation was detected, for example `{ClassName}:{MethodName}` or `{filename}:{linenumber}`. Implementations may define additional, non-standardized violations.
 
-### 14.5 Using EM Traces in Practice
+### 15.5 Using EM Traces in Practice
 
 | Question | How to answer it with EM messages |
 | --- | --- |
@@ -2637,18 +2896,18 @@ In this example, `Fusion` needed 284 ms from creation to `kRunning`, and it late
 
 ---
 
-## 15. End-to-End Walkthrough: A Day in the Life of an ECU
+## 16. End-to-End Walkthrough: A Day in the Life of an ECU
 
 > **Why this matters:** The previous chapters looked at one mechanism at a time. This chapter follows the running example (see [The Running Example](#the-running-example)) through a complete cycle: power-on, normal operation, a crash with recovery, and shutdown.
 
-### 15.1 Phase 1: Power On to Startup
+### 16.1 Phase 1: Power On to Startup
 
 1. The bootloader authenticates and starts the OS, and the OS authenticates and starts EM.
 2. EM verifies the Processed Manifests. The machine runs in `strictMode`, and all checks pass. Every Function Group is in `Off`.
 3. EM self-initiates `MachineFG`: `Off` → `Startup` and starts `PlatformHealth` and `StateManager`, together with the other platform daemons. Each of them reports `kRunning`.
 4. `StateManager` calls `GetInitialMachineStateTransitionResult()`, and the future reports success. From now on, `StateManager` is in control (see [Section 9.2](#92-machine-startup-step-by-step)).
 
-### 15.2 Phase 2: Bringing Up the Vehicle Function
+### 16.2 Phase 2: Bringing Up the Vehicle Function
 
 - `StateManager` requests `MachineFG.Driving`. `StateManager` and `PlatformHealth` reference `Startup` and `Driving` through the same startup configuration, so EM leaves them running.
 - `StateManager` then requests `ADAS.Normal`. EM starts the ADAS processes in the three waves derived from the Execution Dependencies (see [Section 6.5](#65-dependencies-in-the-running-example)).
@@ -2685,7 +2944,7 @@ sequenceDiagram
     EM-->>SM: Future ready, ADAS.Normal reached
 ```
 
-### 15.3 Phase 3: A Process Crashes
+### 16.3 Phase 3: A Process Crashes
 
 Some time later, `Fusion` crashes with a segmentation fault. No state transition is in progress, so [SWS_EM_01309] applies:
 
@@ -2696,7 +2955,7 @@ Some time later, `Fusion` crashes with a segmentation fault. No state transition
 
 `StateManager` decides, based on its project-specific logic and the error code `42`, to switch ADAS to `Degraded`.
 
-### 15.4 Phase 4: Recovery to Degraded
+### 16.4 Phase 4: Recovery to Degraded
 
 The Function Group is undefined at this point, and the specification does not spell out the details for this case. Conceptually, EM compares the processes that are still alive, and the configurations they were started with, against the RequestedState. This is also what guarantees that a transition to `Off` always works. For the running example, the result is:
 
@@ -2726,14 +2985,14 @@ sequenceDiagram
     EM-->>SM: Future ready, ADAS.Degraded reached
 ```
 
-### 15.5 Phase 5: Shutdown
+### 16.5 Phase 5: Shutdown
 
 1. The driver switches off the vehicle, and `StateManager` decides to shut down.
 2. `StateManager` requests `ADAS.Off`. EM terminates the processes in reverse dependency order: first `FusionLite`, then `LoggerCompanion`, then `LegacyLogger`. `Storage` and `CameraDriver` can stop in parallel. Every process persists its data and exits with `EXIT_SUCCESS`.
 3. `StateManager` requests `MachineFG.Shutdown`. EM starts `PowerControl`. `StateManager` and `PlatformHealth` reference `Shutdown`, too, so they keep running.
 4. `PowerControl` reports `kRunning`, synchronizes the file systems and powers off the machine in a project-specific way (see [Section 9.4](#94-shutdown-and-restart)).
 
-### 15.6 Process State Overview
+### 16.6 Process State Overview
 
 | Process | After `Startup` | `ADAS.Normal` | After the `Fusion` crash | `ADAS.Degraded` | `MachineFG.Shutdown` |
 | --- | --- | --- | --- | --- | --- |
@@ -2759,13 +3018,13 @@ sequenceDiagram
 
 ---
 
-## 16. Best Practices, Pitfalls and Troubleshooting
+## 17. Best Practices, Pitfalls and Troubleshooting
 
 > **Why this matters:** Most EM-related problems are not caused by EM bugs. They come from application code or manifests that do not follow EM's rules. These checklists and the troubleshooting table condense the rules from the previous chapters into actionable form.
 
-### 16.1 Checklist for Application Developers
+### 17.1 Checklist for Application Developers
 
-- [ ] Call `ara::core::Initialize()` first. Then create **exactly one** `ExecutionClient`, early in `main()`.
+- [ ] Call `ara::core::Initialize(argc, argv)` first. Then create **exactly one** `ExecutionClient`, early in `main()`.
 - [ ] Pass a termination handler that only *signals* the main logic, and keep the handler valid for the client's lifetime.
 - [ ] Report `kRunning` **once**, right after your own initialization. Do not wait for other services before reporting.
 - [ ] On termination, persist data and release resources **within the termination timeout**, then exit with `EXIT_SUCCESS`.
@@ -2777,9 +3036,10 @@ sequenceDiagram
 - [ ] For a one-shot job (self-terminating), report `kRunning`, do the job, then exit with `EXIT_SUCCESS`.
 - [ ] Give the integrator realistic estimates for memory, CPU time and start-up time.
 
-### 16.2 Checklist for Integrators
+### 17.2 Checklist for Integrators
 
-- [ ] Configure exactly one `MachineFG` with `Off`, `Startup`, `Shutdown`, `Restart` and `Verify`, in the `PLATFORM_CORE` SoftwareCluster.
+- [ ] Start from the minimal configuration of [Section 13.1](#131-minimal-configuration).
+- [ ] Configure exactly one `MachineFG` with `Off`, `Startup`, `Shutdown`, `Restart` and `Verify`, in the `PLATFORM_CORE` Software Cluster. Give every other Function Group `Off` and `Verify`, too.
 - [ ] Configure State Management to run in **every** Machine State, including `Startup`, `Shutdown` and `Restart`.
 - [ ] Configure at least one process each for `Shutdown` and `Restart` that performs the actual OS shutdown or reboot.
 - [ ] Make sure every process belongs to exactly one Function Group and references at least one of its states.
@@ -2794,7 +3054,7 @@ sequenceDiagram
 - [ ] Use `strictMode` in production. Use `monitorMode` only during development.
 - [ ] Ensure that State Management brings the application Function Groups to `Off` before requesting `Shutdown` or `Restart`, and that it supervises every `SetState` future with a timeout.
 
-### 16.3 Troubleshooting Guide
+### 17.3 Troubleshooting Guide
 
 | Symptom | Likely cause | What to check |
 | --- | --- | --- |
@@ -2812,19 +3072,27 @@ sequenceDiagram
 | A process dies immediately with a fatal log message | A violation: a second `ExecutionClient` or `StateClient`, `ReportExecutionState` in a non-reporting process, or `StateClient` in a non-SM process | Violation messages `0x80004ffc` to `0x80004fff` |
 | A dependent process starts before the service it needs is ready | Its provider is non-reporting, so the dependency was satisfied immediately | Add a Companion Process (see [Section 5.4](#54-non-reporting-processes-and-the-companion-pattern)) |
 | A process restarts at every state change, although its configuration "did not change" | Different `StateDependentStartupConfig` per state, often forced by [constr_10411] because the process has Execution Dependencies | The manifest. Consider removing unnecessary dependencies. |
-| A real-time application shows non-real-time behavior | Only the main thread got the configured policy and priority | Thread creation code in the application |
+| A real-time application shows non-real-time behavior | EM configured only the main thread; worker threads were created with explicit attributes or changed their own scheduling | Thread creation code in the application |
+| Timeouts behave as if they were 1000 times too long | Milliseconds written where the manifest expects seconds (`TimeValue`) | `StartupConfig.timeout` and `Machine.defaultApplicationTimeout` ([Section 13.5](#135-startupconfig)) |
 | `fork` or `posix_spawn` fails inside an application | `permissionToCreateChildProcess` is `false`, which is the default | The manifest |
 | A Function Group stays undefined after a crash | State Management did not react to the `undefinedStateCallback` | SM logic and logs. EM does not recover on its own. |
 
+> **Key takeaways**
+>
+> - Most EM problems are configuration or application problems, not EM bugs. Start every investigation with the manifest and EM's DLT messages.
+> - Application developers: one `ExecutionClient`, `kRunning` right after your own initialization, a short termination handler, a clean exit within the termination timeout.
+> - Integrators: follow the minimal configuration, know which processes restart at which transition, and base timeouts and limits on measurements.
+> - The error code of `SetState` and the DLT message together usually point straight to the cause.
+
 ---
 
-## 17. Summary and Self-Check Quiz
+## 18. Summary and Self-Check Quiz
 
-### 17.1 Summary
+### 18.1 Summary
 
 1. **EM is the executor, not the decision maker.** It starts, configures and stops processes according to manifests. State Management decides which states are requested.
 2. **Three levels of software unit.** Executable (file) → Modelled Process (manifest description) → Process (running OS process).
-3. **Function Groups switch software.** Each Function Group has its own states, including the mandatory `Off`. `MachineFG` controls the machine lifecycle and must have `Off`, `Startup`, `Shutdown`, `Restart` and `Verify`.
+3. **Function Groups switch software.** Each Function Group has its own states, including the mandatory `Off` and `Verify`. `MachineFG` controls the machine lifecycle and must have `Off`, `Startup`, `Shutdown`, `Restart` and `Verify`.
 4. **Two views of a process.** The Execution State is what the process reports (`kRunning`). The Process State is what EM tracks: `Idle`, `Starting`, `Running`, `Terminating`, `Terminated`.
 5. **Cooperative termination.** `SIGTERM`, then the termination handler, then cleanup, then `EXIT_SUCCESS`. A timeout leads to `SIGKILL`.
 6. **Execution Dependencies order processes; they do not start them.** They are limited to one Function Group State. Prefer service discovery for applications.
@@ -2832,113 +3100,135 @@ sequenceDiagram
 8. **Errors are reported, not repaired.** Failures lead to an Undefined Function Group State, reported through the `SetState` future or the `undefinedStateCallback`. State Management recovers.
 9. **Security gatekeeper.** In `strictMode`, unverified software is never launched. EM also provides process identities for IAM, and only State Management may use `StateClient`.
 10. **Traceability.** Standardized DLT messages let you reconstruct every process lifecycle.
+11. **Configuration decides.** EM defines no default values. The `StateDependentStartupConfig` decides in which states a process runs and whether it restarts; the Machine provides the default timeouts and the ResourceGroups; a `FunctionGroupPortMapping` decides who may switch a Function Group.
 
-### 17.2 Self-Check Quiz
+### 18.2 Self-Check Quiz
 
 Try to answer each question first, then expand the answer.
 
 <details>
 <summary>1. Who decides that ADAS should switch to Degraded: EM or State Management?</summary>
 
-State Management. EM only performs the transition that SM requests with `StateClient::SetState`, and reports the result.
+State Management. EM only performs the transition that SM requests with `StateClient::SetState`, and reports the result. See [Section 7.4](#74-division-of-responsibilities-sm-decides-em-executes).
 
 </details>
 
 <details>
 <summary>2. Name the five standard Process States and the event that leads into each.</summary>
 
-`Idle` (before creation), `Starting` (process created, resources allocated), `Running` (`kRunning` reported, or immediately for non-reporting processes), `Terminating` (EM sent `SIGTERM`), `Terminated` (the process has exited and its resources are freed).
+`Idle` (before creation), `Starting` (process created, resources allocated), `Running` (`kRunning` reported, or immediately for non-reporting processes), `Terminating` (EM sent `SIGTERM`), `Terminated` (the process has exited and its resources are freed). See [Section 5.1](#51-two-views-of-a-process-execution-state-and-process-state).
 
 </details>
 
 <details>
 <summary>3. A reporting process forgets to call ReportExecutionState. What happens during the state transition?</summary>
 
-The start-up timeout expires. EM kills the process (`SIGKILL`), retries up to `numberOfRestartAttempts` times, and then stops the transition. The Function Group enters an Undefined Function Group State, `SetState` returns `kOperationFailed`, and EM logs `ProcessStartUpFailure`.
+The start-up timeout expires. EM kills the process (`SIGKILL`), retries up to `numberOfRestartAttempts` times, and then stops the transition. The Function Group enters an Undefined Function Group State, `SetState` returns `kOperationFailed`, and EM logs `ProcessStartUpFailure`. See [Section 8.3](#83-timeouts-and-start-up-failures).
 
 </details>
 
 <details>
 <summary>4. Which signals remain unblocked for a reporting process, and why?</summary>
 
-`SIGABRT`, `SIGBUS`, `SIGFPE`, `SIGILL` and `SIGSEGV`. The OS raises them when execution cannot reasonably continue, and ignoring them would be undefined behavior under POSIX. All other blockable signals are blocked, and `SIGTERM` is handled by `ExecutionClient`.
+`SIGABRT`, `SIGBUS`, `SIGFPE`, `SIGILL` and `SIGSEGV`. The OS raises them when execution cannot reasonably continue, and ignoring them would be undefined behavior under POSIX. All other blockable signals are blocked, and `SIGTERM` is handled by `ExecutionClient`. See [Section 5.8](#58-signal-mask-arguments-and-environment-variables).
 
 </details>
 
 <details>
 <summary>5. Process D depends on C.Terminated. What must be true about C?</summary>
 
-`C` must be a self-terminating process (`terminationBehavior = processIsSelfTerminating`), and it must belong to the same Function Group State as `D`.
+`C` must be a self-terminating process (`terminationBehavior = processIsSelfTerminating`), and it must belong to the same Function Group State as `D`. See [Section 6.4](#64-rules-and-constraints-you-must-know).
 
 </details>
 
 <details>
 <summary>6. A process ignores SIGTERM during a transition. Does the transition fail?</summary>
 
-No. After the termination timeout, EM has the OS kill the process (`SIGKILL`), logs `ProcessTerminationTimeout`, and continues the transition. That is why `Off` is always reachable.
+No. After the termination timeout, EM has the OS kill the process (`SIGKILL`), logs `ProcessTerminationTimeout`, and continues the transition. That is why `Off` is always reachable. See [Section 8.3](#83-timeouts-and-start-up-failures).
 
 </details>
 
 <details>
 <summary>7. What is the difference between Abnormal Termination and Unexpected Termination?</summary>
 
-Abnormal Termination: the exit status is not `0`, which includes crashes from unhandled signals. Unexpected Termination: termination without a justified reason, for example a non-self-terminating process that exits without a request, or any process that exits before reporting `kRunning`. EM handles both alike.
+Abnormal Termination: the exit status is not `0`, which includes crashes from unhandled signals. Unexpected Termination: termination without a justified reason, for example a non-self-terminating process that exits without a request, or any process that exits before reporting `kRunning`. EM handles both alike. See [Section 2.5](#25-termination-events).
 
 </details>
 
 <details>
 <summary>8. A process crashes while no transition is in progress. How does State Management learn about it?</summary>
 
-EM sets the Function Group to an Undefined Function Group State and calls the `undefinedStateCallback` with an `ExecutionErrorEvent`. SM can retrieve the same information later with `GetExecutionError`.
+EM sets the Function Group to an Undefined Function Group State and calls the `undefinedStateCallback` with an `ExecutionErrorEvent`. SM can retrieve the same information later with `GetExecutionError`. See [Section 5.7](#57-crashes-outside-a-state-transition).
 
 </details>
 
 <details>
 <summary>9. Why may a process not belong to two Function Groups?</summary>
 
-A transition in one group might have to terminate the process, which would break the active state of the other group.
+A transition in one group might have to terminate the process, which would break the active state of the other group. See [Section 7.2](#72-function-groups-and-function-group-states).
 
 </details>
 
 <details>
 <summary>10. SetState is called for the state that the Function Group is already in. What is the result?</summary>
 
-EM ignores the request and returns success immediately ([SWS_EM_02295]).
+EM ignores the request and returns success immediately ([SWS_EM_02295]). See [Section 8.6](#86-overlapping-and-repeated-requests).
 
 </details>
 
 <details>
 <summary>11. What distinguishes strictMode from monitorMode?</summary>
 
-Both perform the integrity and authenticity checks. In `strictMode`, software that fails a check is not launched. In `monitorMode`, the failure is logged and reported, but startup continues.
+Both perform the integrity and authenticity checks. In `strictMode`, software that fails a check is not launched. In `monitorMode`, the failure is logged and reported, but startup continues. See [Section 12.3](#123-launch-behavior-modes).
 
 </details>
 
 <details>
 <summary>12. Which processes may use StateClient?</summary>
 
-Only processes with `functionClusterAffiliation = STATE_MANAGEMENT`, and for each Function Group only the process that has the `FunctionGroupPortMapping` to it. A process may create only one `StateClient`.
+Only processes with `functionClusterAffiliation = STATE_MANAGEMENT`, and for each Function Group only the process that has the `FunctionGroupPortMapping` to it. A process may create only one `StateClient`. See [Section 12.6](#126-function-group-access-control).
 
 </details>
 
 <details>
 <summary>13. Why should a process report kRunning before its service discovery completes?</summary>
 
-Discovery delays are non-deterministic. Waiting for them would delay every process that depends on this one through Execution Dependencies, and it risks the start-up timeout.
+Discovery delays are non-deterministic. Waiting for them would delay every process that depends on this one through Execution Dependencies, and it risks the start-up timeout. See [Section 5.3](#53-reporting-krunning).
 
 </details>
 
 <details>
 <summary>14. Does EM power off the machine in the Shutdown state?</summary>
 
-No. A project-specific process configured for the `Shutdown` Machine State performs the actual power-off. EM handles `Shutdown` like any other state transition.
+No. A project-specific process configured for the `Shutdown` Machine State performs the actual power-off. EM handles `Shutdown` like any other state transition. See [Section 9.4](#94-shutdown-and-restart).
 
 </details>
 
 <details>
 <summary>15. Process X has Execution Dependencies and runs in both ADAS.Normal and ADAS.Degraded. What happens at a Normal to Degraded transition?</summary>
 
-Because of [constr_10411], `X` needs a separate `StateDependentStartupConfig` per state. The configurations differ, so EM restarts `X` at the transition ([SWS_EM_02251]).
+Because of [constr_10411], `X` needs a separate `StateDependentStartupConfig` per state. The configurations differ, so EM restarts `X` at the transition ([SWS_EM_02251]). See [Section 13.4](#134-statedependentstartupconfig-and-executiondependency).
+
+</details>
+
+<details>
+<summary>16. An integrator removes the attribute numberOfRestartAttempts from a process. How often does EM try to start it?</summary>
+
+Once. "0" and an absent attribute both mean "start once"; there is no retry. See [Section 13.3](#133-process).
+
+</details>
+
+<details>
+<summary>17. Process P sets no timeout in its StartupConfig. Which start-up and termination timeouts apply?</summary>
+
+The defaults of the Machine: `Machine.defaultApplicationTimeout.enterTimeoutValue` for the start-up ([TPS_MANI_01412]) and `exitTimeoutValue` for the termination ([TPS_MANI_03151]). Both are mandatory in the Machine Manifest. See [Section 13.5](#135-startupconfig).
+
+</details>
+
+<details>
+<summary>18. State Management calls SetState for ADAS and always gets kInvalidMetaModelIdentifier, although the state name is correct. What is missing?</summary>
+
+Most likely the `FunctionGroupPortMapping` that connects the R-port named by the `FunctionGroup`'s instance specifier, in the State Management process, to the Function Group `ADAS`. Without it, EM rejects the request ([SWS_EM_02584]). See [Section 13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping).
 
 </details>
 
@@ -2984,41 +3274,42 @@ Because of [constr_10411], `X` needs a separate `StateDependentStartupConfig` pe
 | Term | Plain-language definition | See |
 | --- | --- | --- |
 | Abnormal Termination | A process ended with an exit status other than `0`, for example after a crash. | [2.5](#25-termination-events) |
-| Adaptive Application | Software that delivers a function. It consists of one or more Executables. | [2.1](#21-software-units-from-application-to-os-process) |
+| Adaptive Application | Software that delivers a function. It consists of one or more Executables. It uses only ARA and the POSIX profile PSE51, so that it can be deployed on any Adaptive Platform. | [2.1](#21-software-units-from-application-to-os-process) |
 | Companion Process | A small reporting process that reports `kRunning` on behalf of a non-reporting process once that process is really usable. | [5.4](#54-non-reporting-processes-and-the-companion-pattern) |
 | CurrentState | The state a Function Group is in when a transition starts. | [8.1](#81-vocabulary) |
 | Executable | A program file with exactly one `main()` function. | [2.1](#21-software-units-from-application-to-os-process) |
 | Execution Dependency | "Start me only after process X is *Running* (or has *Terminated*)." It controls order, not whether a process starts. | [6](#6-execution-dependencies-startup-and-shutdown-ordering) |
-| Execution Manifest | The configuration of an Executable's processes: states, arguments, scheduling, dependencies, timeouts and more. | [4.2](#42-manifest-types) |
+| Execution Manifest | The configuration of an Executable's processes: states, arguments, scheduling, dependencies, timeouts and more. | [4.1](#41-where-the-configuration-lives) |
 | Execution State | The state of a process as seen by the process itself. The only reportable value is `kRunning`. | [5.1](#51-two-views-of-a-process-execution-state-and-process-state) |
-| ExecutionError | A number (`std::uint32_t`) that identifies why a process failed. It is configured per process, with the default `1`. | [13.6](#136-executionerrorevent-and-executionerror) |
-| ExecutionErrorEvent | The event that tells State Management which Function Group failed, together with its `ExecutionError`. | [13.6](#136-executionerrorevent-and-executionerror) |
+| ExecutionError | A number (`std::uint32_t`) that identifies why a process failed. It is configured per process, with the default `1`. | [14.6](#146-executionerrorevent-and-executionerror) |
+| ExecutionErrorEvent | The event that tells State Management which Function Group failed, together with its `ExecutionError`. | [14.6](#146-executionerrorevent-and-executionerror) |
 | Freedom From Interference | The guarantee that a faulty part of the system cannot disturb unrelated parts. | [11.1](#111-why-resource-management-matters) |
 | Function Group | A named group of processes that are switched on and off together. | [7.2](#72-function-groups-and-function-group-states) |
 | Function Group State | One mode of a Function Group, which defines the set of processes that run. | [7.2](#72-function-groups-and-function-group-states) |
-| FunctionGroupPortMapping | The manifest element that allows one State Management process to control one Function Group. | [12.6](#126-function-group-access-control) |
+| FunctionGroupPortMapping | The manifest element that allows one State Management process to control one Function Group. | [12.6](#126-function-group-access-control), [13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping) |
 | Machine | The environment one Adaptive Platform instance runs on: an ECU, a virtual machine or a container. | [2.1](#21-software-units-from-application-to-os-process) |
-| Machine Manifest | The machine-wide configuration. | [4.2](#42-manifest-types) |
+| Machine Manifest | The machine-wide configuration. | [4.1](#41-where-the-configuration-lives) |
 | Machine State | A state of the Function Group `MachineFG`. | [7.3](#73-machinefg-and-machine-states) |
 | MachineFG | The mandatory Function Group that controls the machine lifecycle. | [7.3](#73-machinefg-and-machine-states) |
 | Modelled Process | The manifest description of one way to run an Executable (the meta-class `Process`). | [2.1](#21-software-units-from-application-to-os-process) |
 | monitorMode | Trusted-platform mode in which failed checks are logged, but software is still launched. | [12.3](#123-launch-behavior-modes) |
 | Non-reporting Process | A process that does not report its Execution State and is considered *Running* immediately after creation. | [5.4](#54-non-reporting-processes-and-the-companion-pattern) |
 | Off (state) | The mandatory initial state of every Function Group. No processes run in it. | [7.2](#72-function-groups-and-function-group-states) |
-| PLATFORM_CORE | The category of the SoftwareCluster that carries `MachineFG`. There is exactly one per machine. | [7.3](#73-machinefg-and-machine-states) |
+| PLATFORM_CORE | The category of the Software Cluster that carries `MachineFG`. There is exactly one per machine. | [7.3](#73-machinefg-and-machine-states) |
 | Pre-mapping | Loading a process completely before it runs, to avoid demand-loading delays. | [11.4](#114-process-level-memory-settings) |
 | Process | The running OS process that EM creates from a Modelled Process. | [2.1](#21-software-units-from-application-to-os-process) |
 | Process State | The state of a process as tracked by EM: `Idle`, `Starting`, `Running`, `Terminating`, `Terminated`. | [5.1](#51-two-views-of-a-process-execution-state-and-process-state) |
-| Processed Manifest | A manifest converted into a platform-specific format for fast reading at startup. | [4.2](#42-manifest-types) |
+| Processed Manifest | A manifest converted into a platform-specific format for fast reading at startup. | [4.1](#41-where-the-configuration-lives) |
 | Reporting Process | A process that reports `kRunning` using `ExecutionClient`. This is the normal case. | [2.4](#24-process-flavors) |
 | RequestedState | The target state of a transition. | [8.1](#81-vocabulary) |
 | ResourceGroup | A group of processes that share a CPU limit and a memory limit. | [11.3](#113-resourcegroup-group-level-limits) |
 | Self-terminating Process | A process that is allowed to exit on its own, typically a one-shot job. | [5.6](#56-self-terminating-processes) |
 | Service Discovery | The Communication Management mechanism with which applications find each other's services. It is the preferred way to sequence applications. | [6.6](#66-prefer-service-discovery-for-applications) |
-| Service Instance Manifest | The communication deployment configuration. EM does not use it, but checks its integrity in `strictMode`. | [4.2](#42-manifest-types) |
-| SoftwareCluster | An installable software package that claims Function Groups. | [4.3](#43-the-meta-model-elements-em-reads) |
-| StartupConfig | A reusable set of start parameters for a process. | [4.3](#43-the-meta-model-elements-em-reads) |
-| StateDependentStartupConfig | Links a process to a `StartupConfig` for a set of Function Group States, with dependencies and resources. | [4.3](#43-the-meta-model-elements-em-reads) |
+| Service Instance Manifest | The configuration of how service-oriented communication is deployed on the network. EM does not use it, but checks its integrity in `strictMode`. | [4.1](#41-where-the-configuration-lives) |
+| Software Cluster | The unit of deployment and update: a set of executables, manifests and data, which claims Function Groups. The meta-class is `SoftwareCluster`. | [13.9](#139-function-groups-and-software-clusters) |
+| StartupConfig | A reusable set of start parameters for a process. | [4.2](#42-how-the-elements-relate), [13.5](#135-startupconfig) |
+| StateClientInterface | The port interface of the R-port through which State Management controls one Function Group. | [13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping) |
+| StateDependentStartupConfig | Links a process to a `StartupConfig` for a set of Function Group States, with dependencies and resources. | [4.2](#42-how-the-elements-relate), [13.4](#134-statedependentstartupconfig-and-executiondependency) |
 | State Management | The functional cluster that decides which Function Group States are requested. | [7.4](#74-division-of-responsibilities-sm-decides-em-executes) |
 | strictMode | Trusted-platform mode in which software that fails a check is never launched. | [12.3](#123-launch-behavior-modes) |
 | Supervised Process | A process that PHM supervises. EM informs PHM about its lifecycle. | [5.9](#59-synchronization-with-platform-health-management) |
@@ -3028,6 +3319,7 @@ Because of [constr_10411], `X` needs a separate `StateDependentStartupConfig` pe
 | Undefined Function Group State | A Function Group state that is not one of the modelled states: during a transition, after a failed transition, or after a crash. | [10.3](#103-undefined-function-group-state) |
 | Unexpected Termination | A process ended without a justified reason, for example without being asked to, or before it reported `kRunning`. | [2.5](#25-termination-events) |
 | Unrecoverable State | EM's last resort: pre-cleanup, then terminate all processes, then post-cleanup. | [10.4](#104-unrecoverable-state) |
+| Verify (state) | The state that every Function Group must have. State Management uses it while an update of the Function Group's Software Cluster is activated. | [7.2](#72-function-groups-and-function-group-states) |
 | Violation | A broken API contract, for example two `ExecutionClient` objects. It is logged, and the offending process is terminated. | [10.1](#101-errors-and-violations) |
 
 ---
@@ -3059,17 +3351,22 @@ Because of [constr_10411], `X` needs a separate `StateDependentStartupConfig` pe
 
 ### B.3 Defaults at a Glance
 
-| Setting | Default |
-| --- | --- |
-| `reportingBehavior` | Reporting |
-| `terminationBehavior` | Terminates only on request (`processIsNotSelfTerminating`) |
-| `permissionToCreateChildProcess` | `false` |
-| `numberOfRestartAttempts` | `0`: start once, no retry |
-| `processExecutionError` | `1` |
-| Termination timeout | `Machine.defaultApplicationTimeout`, overridable per `StartupConfig.timeout` |
-| Environment variable conflict | The Execution Manifest wins over the Machine Manifest |
-| Environment variable without a value | Empty string |
-| `argv[0]` | The name of the Executable |
+EM defines no default values for its configuration (Section 10.1 of the specification). The table lists what happens when an attribute is absent, with the item that says so. [Chapter 13](#13-configuration-reference-what-to-configure) has the complete tables.
+
+| Setting | If absent | Source |
+| --- | --- | --- |
+| `Executable.reportingBehavior` | Reporting | [TPS_MANI_01279] |
+| `StartupConfig.terminationBehavior` | Terminates only on request (`processIsNotSelfTerminating`) | [SWS_EM_01314] |
+| `StartupConfig.permissionToCreateChildProcess` | `false` | [SWS_EM_02558] |
+| `Process.numberOfRestartAttempts` | Start once, no retry (same as `0`) | Table A.10 |
+| `StartupConfig.processExecutionError` | `ExecutionError` value `1` | [SWS_EM_02543] |
+| `StartupConfig.timeout` (start-up) | `Machine.defaultApplicationTimeout.enterTimeoutValue` | [TPS_MANI_01412] |
+| `StartupConfig.timeout` (termination) | `Machine.defaultApplicationTimeout.exitTimeoutValue` | [TPS_MANI_03151] |
+| `ResourceGroup.cpuUsage`, `memUsage` | Only implicit limits | Notes after [SWS_EM_02103], [SWS_EM_02102] |
+| `schedulingPolicy`, `schedulingPriority`, `preMapping`, `shallRunOn`, `shallNotRunOn`, `resourceConsumption` | Not specified: EM has nothing to configure | |
+| Environment variable in both manifests | The Execution Manifest wins | [SWS_EM_02248] |
+| Environment variable without a value | Empty string | [SWS_EM_02249] |
+| `argv[0]` | The name of the Executable | [SWS_EM_01072] |
 
 ### B.4 Timeouts and Signals at a Glance
 
@@ -3112,13 +3409,13 @@ Use this table to find the normative text in the specification (R25-11) for each
 | Overview and responsibilities | [1](#1-introduction-to-execution-management) | 1, 7 (intro), 7.2 | [SWS_EM_02558], [SWS_EM_02559] |
 | Terminology | [2](#2-core-concepts-and-terminology) | 2, 7.1 | (definitions) |
 | Interfaces to other functional clusters | [3](#3-em-in-the-system-architecture) | 5 | [SWS_EM_01210], [SWS_EM_01211], [SWS_EM_01212], [SWS_EM_02400] |
-| Manifests and configuration | [4](#4-configuration-inputs-manifests) | 7.1.3 to 7.1.5, 10.2, Appendix A | [SWS_EM_CONSTR_01744], [SWS_EM_CONSTR_00001], [SWS_EM_CONSTR_02556] |
+| Configuration overview | [4](#4-configuration-overview) | 7.1.3 to 7.1.5, 10, Appendix A; TPS 10, 11 | [SWS_EM_02308] |
 | Execution State and Process State | [5.1](#51-two-views-of-a-process-execution-state-and-process-state) | 7.3.1, 7.3.2 | [SWS_EM_01002], [SWS_EM_01003], [SWS_EM_01004], [SWS_EM_01402], [SWS_EM_01404], [SWS_EM_01006] |
 | Reporting `kRunning` | [5.3](#53-reporting-krunning) | 7.3.1.1, 7.3.1.4 | [SWS_EM_01401], [SWS_EM_02243], [SWS_EM_01403], [SWS_EM_02582] |
 | Termination and the termination handler | [5.5](#55-terminating-a-process) | 7.3.1.2 | [SWS_EM_01055], [SWS_EM_02577], [SWS_EM_01314] |
 | Abnormal termination outside transitions | [5.7](#57-crashes-outside-a-state-transition) | 7.3.1.3 | [SWS_EM_01309], [SWS_EM_02543] |
 | Signal mask, arguments, environment | [5.8](#58-signal-mask-arguments-and-environment-variables) | 7.3.4.2 to 7.3.4.4 | [SWS_EM_02578], [SWS_EM_02579], [SWS_EM_01012], [SWS_EM_01072], [SWS_EM_01078], [SWS_EM_02246], [SWS_EM_02247], [SWS_EM_02248], [SWS_EM_02249] |
-| Tracing of process state transitions | [14.2](#142-process-lifecycle-trace-messages) | 7.3.3 | [SWS_EM_02573], [SWS_EM_02574], [SWS_EM_02575], [SWS_EM_02576] |
+| Tracing of process state transitions | [15.2](#152-process-lifecycle-trace-messages) | 7.3.3 | [SWS_EM_02573], [SWS_EM_02574], [SWS_EM_02575], [SWS_EM_02576] |
 | Execution Dependencies | [6](#6-execution-dependencies-startup-and-shutdown-ordering) | 7.3.4.1 | [SWS_EM_01050], [SWS_EM_01051], [SWS_EM_01001], [SWS_EM_02245], [SWS_EM_02280] |
 | Machine State and Function Group State | [7](#7-state-management-support-machine-state-and-function-groups) | 7.4.1 to 7.4.4 | [SWS_EM_01032], [SWS_EM_01033], [SWS_EM_01110], [SWS_EM_02549] |
 | State transitions | [8](#8-function-group-state-transitions-step-by-step) | 7.4.5 | [SWS_EM_01060], [SWS_EM_02251], [SWS_EM_01066], [SWS_EM_02253], [SWS_EM_02255], [SWS_EM_02259], [SWS_EM_02260], [SWS_EM_02295], [SWS_EM_02296], [SWS_EM_02298], [SWS_EM_02315], [SWS_EM_02316], [SWS_EM_01067] |
@@ -3127,8 +3424,15 @@ Use this table to find the normative text in the specification (R25-11) for each
 | Resource management | [11](#11-resource-management) | 7.5 | [SWS_EM_02102], [SWS_EM_02103], [SWS_EM_02104], [SWS_EM_02596], [SWS_EM_01014], [SWS_EM_01015], [SWS_EM_02106], [SWS_EM_02108], [SWS_EM_02109] |
 | Trusted Platform | [12](#12-security-trusted-platform-and-iam) | 7.7.1, 7.9.1 | [SWS_EM_02299], [SWS_EM_02300], [SWS_EM_02305], [SWS_EM_02306], [SWS_EM_02307], [SWS_EM_02556], [SWS_EM_02588] |
 | IAM and access control | [12.5](#125-identity-and-access-management-support), [12.6](#126-function-group-access-control) | 7.7.2, 7.4.5 | [SWS_EM_02400], [SWS_EM_02297], [SWS_EM_02583], [SWS_EM_02584], [SWS_EM_02585] |
-| API | [13](#13-api-reference-and-usage-guide-araexec) | 8 | [SWS_EM_02001], [SWS_EM_02003], [SWS_EM_02263], [SWS_EM_02269], [SWS_EM_02275], [SWS_EM_02278], [SWS_EM_02281], [SWS_EM_02544] |
-| Log, violation and security reporting | [14](#14-logging-tracing-and-reporting) | 7.9 | [SWS_EM_02569], [SWS_EM_02592], [SWS_EM_02597], [SWS_EM_02588] |
+| Configuration: Executable and Process | [13.2](#132-executable), [13.3](#133-process) | 10, Tables A.1, A.10; TPS 10.2 | [TPS_MANI_01279], [constr_3795], [TPS_MANI_01337], [SWS_EM_CONSTR_01744] |
+| Configuration: StateDependentStartupConfig, ExecutionDependency | [13.4](#134-statedependentstartupconfig-and-executiondependency) | 7.4.5, Tables A.2, A.19; TPS 10.3 | [constr_3423], [constr_3424], [constr_10411], [constr_1689], [constr_1606], [constr_3413] |
+| Configuration: StartupConfig | [13.5](#135-startupconfig) | Tables A.18, A.21; TPS 10.3 | [TPS_MANI_01277], [TPS_MANI_01278], [TPS_MANI_01328], [constr_1692], [SWS_EM_01314], [SWS_EM_02558], [SWS_EM_02543] |
+| Configuration: Machine, ResourceGroup, core affinity | [13.6](#136-machine), [13.7](#137-resourcegroup), [13.8](#138-core-affinity-processtomachinemapping-and-processdesigntomachinedesignmapping) | Tables A.5, A.12, A.13, A.16; TPS 6.2, 11 | [TPS_MANI_01412], [TPS_MANI_03151], [constr_10430], [constr_10170], [constr_1661], [constr_1677] |
+| Configuration: Function Groups, Software Clusters, State Management access | [13.9](#139-function-groups-and-software-clusters), [13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping) | 10.2, Tables A.4, A.7, A.17; TPS 10.4, 12.14.6 | [SWS_EM_CONSTR_02556], [SWS_EM_CONSTR_02557], [constr_10023], [constr_1787], [constr_10620], [constr_10621] |
+| API | [14](#14-api-reference-and-usage-guide-araexec) | 8 | [SWS_EM_02001], [SWS_EM_02003], [SWS_EM_02263], [SWS_EM_02269], [SWS_EM_02275], [SWS_EM_02278], [SWS_EM_02281], [SWS_EM_02544] |
+| Log, violation and security reporting | [15](#15-logging-tracing-and-reporting) | 7.9 | [SWS_EM_02569], [SWS_EM_02592], [SWS_EM_02597], [SWS_EM_02588] |
+| End-to-end walkthrough | [16](#16-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu) | 7.3, 7.4 | [SWS_EM_01309], [SWS_EM_02245], [SWS_EM_02251] |
+| Best practices and troubleshooting | [17](#17-best-practices-pitfalls-and-troubleshooting) | 7 (all), 10 | [SWS_EM_02250], [SWS_EM_02306], [SWS_EM_02555] |
 
 ---
 
@@ -3154,6 +3458,25 @@ This summary is based on the "History of Constraints and Specification Items" in
 | R25-11 | Precedence rule for core affinity | Added: [SWS_EM_02596] |
 | R25-11 | Standardized violation messages | Added: [SWS_EM_02597] to [SWS_EM_02600] |
 | R25-11 | Thread-safety assessment of all APIs; clarified error reporting and error recovery | Changed: many API items, see Section E.1.2 of the specification |
+
+---
+
+## Appendix E. References
+
+**AUTOSAR specifications (R25-11):**
+
+- *Specification of Execution Management* (`AUTOSAR_AP_SWS_ExecutionManagement`)
+- *Specification of Manifest* (`AUTOSAR_AP_TPS_ManifestSpecification`), for the configuration in [Chapter 13](#13-configuration-reference-what-to-configure)
+- *Specification of Adaptive Platform Core* (`AUTOSAR_AP_SWS_Core`), for initialization, error handling and violations
+- *Specification of Operating System Interface* (`AUTOSAR_AP_SWS_OperatingSystemInterface`), for Executables and resource control
+- *Safety Requirements for AUTOSAR Adaptive Platform and AUTOSAR Classic Platform* (`AUTOSAR_FO_RS_Safety`, Foundation R25-11), for Freedom From Interference in [Section 11.1](#111-why-resource-management-matters)
+- *Standardized M1 Models used for the Definition of AUTOSAR* (`AUTOSAR_FO_MOD_GeneralDefinitions`, Foundation R25-11), for the standardized `MachineFG` model
+
+**Other sources:**
+
+- [EXT-009] *sched(7): overview of CPU scheduling*, Linux man-pages project. <https://man7.org/linux/man-pages/man7/sched.7.html> (accessed 2026-10-25)
+- [EXT-010] *Control Group v2*, Linux kernel documentation. <https://docs.kernel.org/admin-guide/cgroup-v2.html> (accessed 2026-10-25)
+- [EXT-021] *pthread_attr_setinheritsched(3): set/get inherit-scheduler attribute in thread attributes object*, Linux man-pages project. <https://man7.org/linux/man-pages/man3/pthread_attr_setinheritsched.3.html> (accessed 2026-10-27)
 
 ---
 

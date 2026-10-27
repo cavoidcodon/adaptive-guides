@@ -19,9 +19,9 @@ Start with guide 00. It suggests shorter reading paths for specific roles, holds
 | # | Guide | Status |
 | --- | --- | --- |
 | 00 | [Learning Path, Series Glossary and Running Example](guides/00_LearningPath.md) | Available (v1.0) |
-| 01 | Adaptive Platform Overview and Architecture | Planned |
-| 02 | Manifests and Methodology | Planned |
-| 03 | `ara::core` and General Conventions | Planned |
+| 01 | [Adaptive Platform Overview and Architecture](guides/01_PlatformOverview.md) | In review |
+| 02 | [Manifests and Methodology](guides/02_Manifests.md) | In review |
+| 03 | [`ara::core` and General Conventions](guides/03_CoreAndGeneral.md) | In review |
 | 04 | [Execution Management](guides/04_ExecutionManagement.md) | Available (v1.0) |
 | 05 | State Management | Planned |
 | 06 | Platform Health Management | Planned |
@@ -68,7 +68,7 @@ The guides are plain Markdown with [Mermaid](https://mermaid.js.org/) diagrams. 
 
 ## The AUTOSAR Specifications
 
-The guides cite the specifications but do not include them. You can download them free of charge from <https://www.autosar.org/standards> (Adaptive Platform and Foundation, release R25-11).
+The guides cite the specifications but do not include them. You can download them free of charge from <https://www.autosar.org/standards> (Adaptive Platform and Foundation, release R25-11). Guide 01 also cites two documents of the Classic Platform R25-11.
 
 ## Disclaimer
 

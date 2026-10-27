@@ -8,9 +8,9 @@
 >
 > **Author:** Hieu Do Minh/Claude
 >
-> **Version:** 1.0 (2026-10-25)
+> **Version:** 1.0
 >
-> **Part of the series:** this guide is the entry point of the [AUTOSAR Adaptive Platform Training Guides](../README.md). Next: guide 01, *Adaptive Platform Overview and Architecture* (`01_PlatformOverview.md`, planned).
+> **Part of the series:** this guide is the entry point of the [AUTOSAR Adaptive Platform Training Guides](../README.md). Next: [01 Adaptive Platform Overview and Architecture](01_PlatformOverview.md).
 
 ## About This Guide
 
@@ -34,13 +34,12 @@ After reading this guide you will be able to:
 1. Explain in a few sentences what the Adaptive Platform is and how the series covers it.
 2. Find the guide that answers your question, and choose a reading path for your role.
 3. Find an AUTOSAR specification and a requirement inside it.
-4. Use the conventions of the series: requirement IDs, boxes, kinds of statements, diagrams and names.
-5. Describe the `HPC` running example: its network, Function Groups, processes and services, and which guide details each part.
-6. Look up a term or an acronym in the series glossary.
+4. Describe the `HPC` running example: its network, Function Groups, processes and services, and which guide details each part.
+5. Look up a term or an acronym in the series glossary.
 
 ### How to Read This Guide
 
-Read Chapters 1 to 5 once. They take about half an hour. Chapter 6, the running example, is a reference: skim it now and come back when a guide uses a part of it. The appendices are for lookup.
+Read Chapters 1 to 5 once. Chapter 6, the running example, is a reference: skim it now and come back when a guide uses a part of it. The appendices are for lookup.
 
 | Convention | Meaning |
 | --- | --- |
@@ -139,7 +138,7 @@ Two technology trends drive the Adaptive Platform: **Ethernet**, which offers mu
 | --- | --- |
 | C++ | Applications are written in C++. |
 | Service-oriented architecture (SOA) | Applications offer and use *services*. The code is the same whether the service runs on the same machine or on another one. |
-| Parallel processing | The platform is designed for multi-core and many-core processors. |
+| Parallel processing | The platform is designed for multi-core processors. |
 | Existing standards | AP reuses existing standards, for example POSIX for the operating system, instead of inventing new ones. |
 | Safety and security | Architecture, dedicated functional clusters and guidelines support safe and secure systems. |
 | Planned dynamics | Software can be deployed incrementally during development. For production, the integrator can restrict the dynamic behavior, for example to a pre-determined service discovery or to authenticated code only. |
@@ -153,7 +152,7 @@ Two technology trends drive the Adaptive Platform: **Ethernet**, which offers mu
 4. Applications talk to each other only through **Communication Management**, the platform's service-oriented middleware.
 5. The platform runs on a **Machine**, which can be a physical ECU, a virtual machine or a container. One Machine runs exactly one instance of the platform.
 
-The following diagram shows these layers. Guide 01 explains them in detail.
+The following diagram shows these layers. [Guide 01](01_PlatformOverview.md#3-the-architecture-logical-view) explains them in detail.
 
 ```mermaid
 flowchart TB
@@ -211,9 +210,9 @@ Read the guides in the order of their numbers, or follow a learning path from [C
 | # | Guide | It answers the question | Main specifications | Status |
 | --- | --- | --- | --- | --- |
 | 00 | Learning Path, Series Glossary and Running Example | Where do I start, what does a term mean, and what is the `HPC`? | FO Glossary, AP EXP Platform Design | This guide |
-| 01 | Adaptive Platform Overview and Architecture (`01_PlatformOverview.md`) | How is the platform structured, and what does the operating system provide? | AP EXP Platform Design, AP EXP SW Architecture, AP SWS Operating System Interface | Planned |
-| 02 | Manifests and Methodology (`02_Manifests.md`) | Who configures what, when, and in which manifest? | AP TPS Manifest Specification | Planned |
-| 03 | `ara::core` and General Conventions (`03_CoreAndGeneral.md`) | How do the `ara::` APIs report errors, and how do I initialize the runtime? | AP SWS Core, AP SWS General | Planned |
+| 01 | [Adaptive Platform Overview and Architecture](01_PlatformOverview.md) | How is the platform structured, and what does the operating system provide? | AP EXP Platform Design, AP EXP SW Architecture, AP SWS Operating System Interface | Available |
+| 02 | [Manifests and Methodology](02_Manifests.md) | Who configures what, when, and in which manifest? | AP TPS Manifest Specification | Available |
+| 03 | [`ara::core` and General Conventions](03_CoreAndGeneral.md) | How do the `ara::` APIs report errors, and how do I initialize the runtime? | AP SWS Core | Available |
 | 04 | [Execution Management](04_ExecutionManagement.md) | Who starts and stops my process, and how do state transitions work? | AP SWS Execution Management | Available |
 | 05 | State Management (`05_StateManagement.md`) | Who decides which Function Group States are active? | AP SWS State Management | Planned |
 | 06 | Platform Health Management (`06_PlatformHealthManagement.md`) | How is my process supervised, and what happens when it misbehaves? | AP SWS Platform Health Management | Planned |
@@ -301,8 +300,8 @@ The following table maps each cluster to its guide. The columns come from two ex
 | Execution Management | `ara::exec` | Runtime | Foundation | yes | [04](04_ExecutionManagement.md) |
 | State Management | `ara::sm` | Runtime | Platform Service | yes | 05 |
 | Log and Trace | `ara::log` | Runtime | Foundation | no | 10 |
-| Core | `ara::core` | Runtime | Foundation | no | 03 |
-| Operating System Interface | (POSIX PSE51, C++ standard library) | Runtime | Foundation | no | 01 |
+| Core | `ara::core` | Runtime | Foundation | no | [03](03_CoreAndGeneral.md) |
+| Operating System Interface | (POSIX PSE51, C++ standard library) | Runtime | Foundation | no | [01](01_PlatformOverview.md#7-the-operating-system-interface) |
 | Communication Management | `ara::com` | Communication | Foundation | yes | 07, 08 |
 | Raw Data Stream | `ara::rds` | Communication | Foundation | no | 09 |
 | Network Management | `ara::nm` | Communication | Foundation | yes | 09 |
@@ -320,11 +319,13 @@ The following table maps each cluster to its guide. The columns come from two ex
 | Registry | (internal, no public API) | Configuration | (not shown) | no | not covered |
 | Diagnostic Management | `ara::diag` | Diagnostics | Foundation | yes | 12a, 12b |
 
+[Guide 01, Chapter 5](01_PlatformOverview.md#5-the-functional-clusters-of-r25-11) describes each cluster in one paragraph, including the clusters that this series does not cover.
+
 **Identity and Access Management (IAM)** does not appear in the table because the *Software Architecture* explanation does not list it as a building block. It is a framework that several clusters implement, built from a Policy Decision Point and Policy Enforcement Points (*Platform Design*, Chapter 14). Guide 15 covers it.
 
 ### 2.4 Topics Outside the Series
 
-The following topics are part of R25-11 but have no guide of their own. Guide 01 mentions them so that you know they exist.
+The following topics are part of R25-11 but have no guide of their own. [Guide 01, Chapter 5](01_PlatformOverview.md#5-the-functional-clusters-of-r25-11) summarizes them so that you know they exist.
 
 | Topic | What it is | Where to read more |
 | --- | --- | --- |
@@ -386,7 +387,7 @@ You write processes that offer and use services, log, store data and report thei
 | Guide | Depth | Why |
 | --- | --- | --- |
 | 00, 01 | Read | Orientation and architecture |
-| 03 `ara::core` | Read | Error handling with `Result` and `Future` is used by every API |
+| [03](03_CoreAndGeneral.md) `ara::core` | Read | Error handling with `Result` and `Future` is used by every API |
 | 07 `ara::com` | Read | Your main API: proxies, skeletons, events, methods, fields |
 | 04 EM | Read Chapters 1, 2, 5 and 13 | How your process is started and stopped, and `ExecutionClient` |
 | 10 Log and Trace | Read | Logging from day one |
@@ -418,7 +419,7 @@ You build or extend a functional cluster, or write the project-specific State Ma
 | Guide | Depth | Why |
 | --- | --- | --- |
 | 00, 01 | Read | Orientation and architecture |
-| 03 `ara::core` | Read | Conventions every cluster API follows |
+| [03](03_CoreAndGeneral.md#12-general-rules-for-all-functional-clusters) `ara::core` | Read | Conventions every cluster API follows |
 | 04 EM, 05 SM, 06 PHM | Read | The lifecycle core that every cluster depends on |
 | The guide of your cluster | Read | Your own area |
 | 02 Manifests | Skim | How your cluster's configuration reaches you |
@@ -454,7 +455,7 @@ You design the security concept of an Adaptive ECU: keys, access control, secure
 
 ### 3.7 If You Know AUTOSAR Classic
 
-Many concepts have a Classic counterpart, but the platform works differently. Applications are processes, not runnables; communication is service-oriented by default; configuration is deployed with the software in manifests and can change through updates; and the platform runs on a POSIX operating system. Read guide 01 first; it compares both platforms. Do not assume that a familiar term means the same thing: look it up in [Appendix A](#appendix-a-series-glossary-and-acronyms).
+Many concepts have a Classic counterpart, but the platform works differently. Applications are processes, not runnables; communication is service-oriented by default; configuration is deployed with the software in manifests and can change through updates; and the platform runs on a POSIX operating system. Read [guide 01](01_PlatformOverview.md#2-why-two-platforms-classic-and-adaptive) first; it compares both platforms. Do not assume that a familiar term means the same thing: look it up in [Appendix A](#appendix-a-series-glossary-and-acronyms).
 
 > **Key takeaways**
 >
@@ -565,7 +566,7 @@ If the specification is silent or ambiguous on a point, the guide says so explic
 ### 5.4 Code, Manifests and Diagrams
 
 - **Code** follows the R25-11 API: names, signatures and headers as in the specification. Examples are short and illustrative. Vendor headers may differ in detail.
-- **Manifests** are AUTOSAR XML (ARXML) files. To keep examples readable, guides often show a *conceptual* view that starts with the comment `# Conceptual view ... NOT real ARXML syntax.` Real ARXML appears only where it is reproduced exactly from the Manifest Specification, mainly in guide 02.
+- **Manifests** are AUTOSAR XML (ARXML) files. To keep examples readable, guides often show a *conceptual* view that starts with the comment `# Conceptual view ... NOT real ARXML syntax.` Real ARXML appears only where it follows the R25-11 XML Schema and the Manifest Specification, mainly in guide 02 ([complete configuration of the running example](02_Manifests.md#1216-the-running-example-complete-configuration)).
 - **Diagrams** use Mermaid: sequence diagrams for interactions, state diagrams for states, and flowcharts for structure and decisions.
 
 ### 5.5 Names and Typography
@@ -606,6 +607,8 @@ The running example follows five rules:
 5. **Only `HPC` is detailed.** All other nodes of the vehicle are black boxes. Only their behavior on the network matters.
 
 The Function Groups, the processes, their states and their Execution Dependencies were introduced by the [EM guide](04_ExecutionManagement.md#the-running-example). This chapter keeps them unchanged and adds everything else.
+
+**The example as a model.** Guide 02 writes a part of the example as real ARXML ([Section 12.16](02_Manifests.md#1216-the-running-example-complete-configuration)). All its model elements live in the top-level package `/HPC`, in sub-packages named after the recommended package of each element kind, for example `/HPC/ServiceInterfaces`, `/HPC/Executables` and `/HPC/Processes`. Standardized data types, such as `uint8_t`, are taken from the package `/AUTOSAR/StdTypes` that AUTOSAR publishes. Guide 02 owns this package structure.
 
 > **Note:** *HPC* is also the general AUTOSAR abbreviation for a *high performance computer*. In the series, `HPC` in code font always means the machine of the running example.
 
@@ -660,12 +663,13 @@ flowchart LR
 
 | Aspect | Value | Owner guides |
 | --- | --- | --- |
-| Machine | `HPC`: one Machine, running one instance of the Adaptive Platform | 01 |
-| Hardware | A multi-core SoC with a Hardware Security Module (HSM), a hardware watchdog and flash memory for persistent data. No hypervisor. | 01, 06, 11, 14 |
-| Operating system | A POSIX operating system. Implementation notes in the series assume Linux. | 01 |
+| Machine | `HPC`: one Machine, running one instance of the Adaptive Platform | [01](01_PlatformOverview.md#43-the-machine) |
+| Hardware | A multi-core SoC (the processor `Soc` with the four cores `Core0` to `Core3`) with a Hardware Security Module (HSM), a hardware watchdog and flash memory for persistent data. No hypervisor. | [01](01_PlatformOverview.md#92-the-hpc-machine-layer-by-layer), [02](02_Manifests.md#76-worked-example-the-hpc-machine), 06, 11, 14 |
+| Machine design | `HpcDesign`: the design-time description of `HPC` in the system, with its Ethernet connection to the backbone | [02](02_Manifests.md#72-machine-design), 08 |
+| Operating system | A POSIX operating system. Implementation notes in the series assume Linux. | [01](01_PlatformOverview.md#7-the-operating-system-interface) |
 | Network interface | One Ethernet interface on the backbone, `192.168.10.10/24` (illustrative) | 08, 16 |
 | Trusted Platform | `strictMode`: software that fails the integrity check is not started | [04](04_ExecutionManagement.md#12-security-trusted-platform-and-iam) |
-| ResourceGroups | `platform_rg` (20 % CPU, 512 MiB), `adas_rg` (60 % CPU, 2 GiB), `legacy_rg` (10 % CPU, 256 MiB) | [04](04_ExecutionManagement.md#45-the-running-example-as-a-manifest) |
+| ResourceGroups | `platform_rg` (20 % CPU, 512 MiB), `adas_rg` (60 % CPU, 2 GiB), `legacy_rg` (10 % CPU, 256 MiB) | [04](04_ExecutionManagement.md#1311-the-running-example-complete-configuration) |
 | Diagnostic address | DoIP logical address `0x1010` (illustrative) for the whole machine | 12a |
 | Log ECU ID | `HPC1` (illustrative) | 10 |
 
@@ -673,8 +677,10 @@ flowchart LR
 
 | Software Cluster | Category | Version | Function Group | Contents | Owner guides |
 | --- | --- | --- | --- | --- | --- |
-| `HpcPlatformCore` | `PLATFORM_CORE` | 1.0.0 | `MachineFG` | The operating system, Execution Management, the processes `StateManager`, `PlatformHealth` and `PowerControl`, the daemons of the other platform clusters, and the platform libraries | 02, 13 |
-| `AdasCluster` | `APPLICATION_LAYER` | 1.0.0, later 1.1.0 ([Section 6.11](#611-software-updates)) | `ADAS` | The seven ADAS processes and their configuration | 02, 13 |
+| `HpcPlatformCore` | `PLATFORM_CORE` | 1.0.0 | `MachineFG` | The operating system, Execution Management, the processes `StateManager`, `PlatformHealth` and `PowerControl`, the daemons of the other platform clusters, and the platform libraries | [02](02_Manifests.md#104-worked-example-adascluster-and-hpcplatformcore), 13 |
+| `AdasCluster` | `APPLICATION_LAYER` | 1.0.0, later 1.1.0 ([Section 6.11](#611-software-updates)) | `ADAS` | The seven ADAS processes and their configuration | [02](02_Manifests.md#104-worked-example-adascluster-and-hpcplatformcore), 13 |
+
+Each Software Cluster carries the ID of its vendor and is signed by that vendor: `HpcPlatformCore` has the vendor ID `0x1111` and is signed with `PlatformVendorCert`; `AdasCluster` has the vendor ID `0x1234` and is signed with `AdasSupplierCert` ([Section 6.12](#612-security)). Guide 02 shows both Software Clusters as ARXML.
 
 **Platform daemons.** Besides `StateManager` and `PlatformHealth`, `HpcPlatformCore` contains the daemons of Communication Management, Diagnostic Management, Update and Configuration Management, Cryptography, the Intrusion Detection System Manager, the Firewall, Network Management and Time Synchronization. EM starts them in `MachineFG.Startup`. Their process names are vendor-specific, so the series calls them by their cluster, for example "the UCM daemon". Library-based clusters, such as Log and Trace, Persistency, Core and Raw Data Stream, run inside the processes that use them.
 
@@ -683,7 +689,7 @@ flowchart LR
 `HPC` has two Function Groups, both defined in the [EM guide](04_ExecutionManagement.md#73-machinefg-and-machine-states):
 
 - **`MachineFG`** controls the machine lifecycle. States: `Off`, `Startup`, `Driving`, `Shutdown`, `Restart` and `Verify`. `Driving` is project-specific; the others are mandatory.
-- **`ADAS`** controls the ADAS feature. States: `Off`, `Normal` and `Degraded`.
+- **`ADAS`** controls the ADAS feature. States: `Off`, `Normal`, `Degraded` and `Verify`. The *Manifest Specification* requires a `Verify` state in every Function Group ([constr_10023]). State Management switches `ADAS` to `Verify` while an update of `AdasCluster` is activated; guide 13 decides which processes run in it.
 
 The following diagrams show the main transitions. EM performs every transition; it initiates only `Off` → `Startup` itself. All other transitions are requested by State Management.
 
@@ -696,7 +702,7 @@ stateDiagram-v2
     Driving --> Shutdown: vehicle switched off
     Driving --> Restart: ECU reset or update
     Verify --> Driving: update verified
-    note right of Verify: entered during the activation of an update (guide 13)
+    note right of Verify: entered while an update that affects MachineFG is activated (guide 13)
 ```
 
 ```mermaid
@@ -708,6 +714,8 @@ stateDiagram-v2
     Degraded --> Normal: SM policy, for example next drive cycle
     Normal --> Off: shutdown or update
     Degraded --> Off: shutdown or update
+    Off --> Verify: update of AdasCluster activated
+    Verify --> Normal: update verified
 ```
 
 | Transition | Requested by State Management when ... | Owner guides |
@@ -719,7 +727,8 @@ stateDiagram-v2
 | `ADAS`: `Degraded` → `Normal` | the project policy allows it, for example at the next drive cycle | 05 |
 | `ADAS` → `Off`, then `MachineFG` → `Shutdown` | `PowerMode` reports that the vehicle is switched off | 04, 05 |
 | `MachineFG` → `Restart` | Diagnostic Management requests an ECU reset, or UCM requests a machine reset | 05, 12a, 13 |
-| `MachineFG` → `Verify` | UCM activates an update | 05, 13 |
+| `ADAS`: `Off` → `Verify` → `Normal` | UCM activates an update of `AdasCluster`: SM switches `ADAS` off, then to `Verify` to check the new software, and finally back to `Normal` (*Platform Design*, Figure 13.10) | 05, 13 |
+| `MachineFG` → `Verify` | UCM activates an update that affects `MachineFG`, that is, the `HpcPlatformCore` Software Cluster | 05, 13 |
 
 Since R22-11, State Management can model this logic with its *StateMachine* concept and a project-specific control application (*Platform Design*, Chapter 7). Guide 05 decides how the `HPC` uses it and may add a process for it.
 
@@ -737,10 +746,14 @@ The ten processes come from the [EM guide](04_ExecutionManagement.md#the-running
 | `CalibrationCheck` | `calib_check` | `ADAS`: Normal | `adas_rg` | Self-terminating check at ADAS start: reads the calibration through `CalibrationDataService` and verifies that it is complete, plausible and authentic. | 04, 11, 14 |
 | `LegacyLogger` | `legacy_logger` | `ADAS`: Normal, Degraded | `legacy_rg` | Third-party data logger. Non-reporting; cannot be modified. | 04 |
 | `LoggerCompanion` | `logger_companion` | `ADAS`: Normal, Degraded | `adas_rg` | Companion process of `LegacyLogger`. | 04 |
-| `Fusion` | `fusion` (version 1.0.0, later 1.1.0) | `ADAS`: Normal | `adas_rg` | Fuses camera images, radar detections and vehicle dynamics into an object list. Provides `ObjectListService` and a DID. Supervised by PHM. `processExecutionError` = 42. | 03, 04, 06, 07, 10, 11, 12a, 13 |
+| `Fusion` | `fusion` (version 1.0.0, later 1.1.0) | `ADAS`: Normal | `adas_rg` | Fuses camera images, radar detections and vehicle dynamics into an object list. Provides `ObjectListService` and a DID. Supervised by PHM. `processExecutionError` = 42, which is the application error `FusionFailed` of the error domain `AdasExecutionErrors`. | [02](02_Manifests.md#84-worked-example-the-processes-cameradriver-and-fusion), [03](03_CoreAndGeneral.md#16-end-to-end-walkthrough-a-day-of-error-handling-in-fusion), 04, 06, 07, 10, 11, 12a, 13 |
 | `FusionLite` | `fusion_lite`\* | `ADAS`: Degraded | `adas_rg` | Reduced fallback that uses only the radar and vehicle dynamics, so it also works with a blocked camera. Provides a reduced `ObjectListService`. | 04, 06, 15 |
 
 The Execution Dependencies are unchanged from the [EM guide](04_ExecutionManagement.md#65-dependencies-in-the-running-example): `CalibrationCheck` needs `Storage` *Running*; `LoggerCompanion` needs `LegacyLogger` *Running*; `Fusion` needs `CalibrationCheck` *Terminated* and `LoggerCompanion` *Running*; `FusionLite` needs `LoggerCompanion` *Running*.
+
+**Software components and instance specifiers.** Guide 02 ([Section 5.5](02_Manifests.md#55-worked-example-cameradriver-and-fusion)) models the executables `camera_driver` and `fusion` with one software component each, `CameraDriverSwc` and `FusionSwc`, placed in the root prototype `Root` of the executable. Their ports for `CameraService` are `CameraPPort` (provided) and `CameraRPort` (required). The application code therefore identifies them with the instance specifiers `/camera_driver/Root/CameraPPort` and `/fusion/Root/CameraRPort`. Other executables are modeled in the same way when a guide needs them.
+
+**State Management ports and process states.** The executable `state_manager` has, in its root prototype `Root`, the R-ports `MachineFgPort` and `AdasFgPort`, typed by the State Client interfaces `MachineFgStateClient` and `AdasStateClient`, so that the code uses the instance specifiers `/state_manager/Root/MachineFgPort` and `/state_manager/Root/AdasFgPort`. The Function Group Port Mappings `StateManagerToMachineFG` and `StateManagerToADAS` connect the two ports of the process `StateManager` to `MachineFG` and `ADAS` ([EM guide, Section 13.10](04_ExecutionManagement.md#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)). The processes that others depend on (`Storage`, `CalibrationCheck`, `LegacyLogger`, `LoggerCompanion`) have a process state machine typed by the group `ProcessStates`, with the states `Running` and `Terminated` ([EM guide, Section 13.11](04_ExecutionManagement.md#1311-the-running-example-complete-configuration)).
 
 > **Pitfall:** Service use is not an Execution Dependency. `Fusion` uses `CameraService`, but it has no Execution Dependency on `CameraDriver`. It waits for the service through Service Discovery, as the EM guide recommends ([EM guide, Section 6.6](04_ExecutionManagement.md#66-prefer-service-discovery-for-applications)).
 
@@ -748,12 +761,22 @@ The Execution Dependencies are unchanged from the [EM guide](04_ExecutionManagem
 
 | Service interface | Provider | Consumers | Elements | Owner guides |
 | --- | --- | --- | --- | --- |
-| `CameraService` | `CameraDriver` | `Fusion` (on `HPC`), `Cockpit` (remote) | event `Image`, method `SetExposureMode`, field `CameraStatus` | 07, 08 |
+| `CameraService` | `CameraDriver` | `Fusion` (on `HPC`), `Cockpit` (remote) | event `Image`, method `SetExposureMode`, field `CameraStatus` | [02](02_Manifests.md#66-worked-example-cameraservice-as-arxml), 07, 08 |
 | `ObjectListService` | `Fusion`; `FusionLite` with reduced content | `Storage` (on `HPC`), `Cockpit` (remote) | event `ObjectList` | 07, 08 |
 | `CalibrationDataService` | `Storage` | read: `CalibrationCheck`, `Fusion`, `FusionLite`; write: `CameraDriver` | methods `GetCalibration`, `SetCalibration` | 07, 11, 15 |
 | `VehicleDynamicsService` | Communication Management, by Signal-to-Service translation | `Fusion`, `FusionLite` | events `VehicleSpeed`, `SteeringAngle`, `YawRate` | 08 |
 | `PowerModeService` | Communication Management, by Signal-to-Service translation | `StateManager` | field `PowerMode` | 05, 08 |
 | `AdasStatusService` | `StateManager` | `InstrumentCluster` (through Signal-to-Service translation), `Cockpit` | field `AdasStatus` with the values `Off`, `Active`, `Degraded`, `Unavailable` | 05, 08 |
+
+**The `CameraService` contract** (detailed in [guide 02, Section 6.6](02_Manifests.md#66-worked-example-cameraservice-as-arxml)). Namespace `hpc::camera`, version 1.0. The event `Image` carries a `CameraImage`: `timestamp` (`uint64_t`), `width` and `height` (`uint16_t`) and `pixels` (a vector of `uint8_t`). The field `CameraStatus` has the type `CameraState` with the values `Ok`, `Blocked` and `NotAvailable`; it has a getter and a notifier but no setter, and its initial value is `NotAvailable`. The method `SetExposureMode(mode)` takes an `ExposureMode` with the values `Auto`, `Day` and `Night`, and can fail with the application error `ExposureModeNotSupported` (code 1 of the error domain `CameraErrors`). `Fusion` calls `SetExposureMode(Night)` when the camera image gets dark; if `CameraDriver` answers `ExposureModeNotSupported`, `Fusion` keeps the mode `Auto` ([guide 03, Section 9.7](03_CoreAndGeneral.md#97-worked-example-fusion-requests-the-night-exposure-mode)).
+
+**Error domains.** Every error belongs to an error domain, and the identifier of each domain must be unique in the platform. Application domains use identifiers whose most significant bit is 0 ([guide 03, Section 7.4](03_CoreAndGeneral.md#74-error-domain-identifiers)). The example has three domains:
+
+| Error domain | Identifier | Namespace | Errors (code) | How it is defined | Owner guides |
+| --- | --- | --- | --- | --- | --- |
+| `CameraErrors` | `0x1001` (4097) | `hpc::camera` | `ExposureModeNotSupported` (1) | Modeled; referenced by `SetExposureMode`, so its C++ code is generated | [02](02_Manifests.md#63-application-errors), [03](03_CoreAndGeneral.md#78-generated-error-domains), 07 |
+| `AdasExecutionErrors` | `0x1002` (4098) | none | `FusionFailed` (42) | Modeled; referenced by the `processExecutionError` of `Fusion` | [02](02_Manifests.md#63-application-errors), 04 |
+| `FusionErrors` | `0x1003` (4099) | `hpc::fusion` | `kInputTimeout` (1), `kCalibrationImplausible` (2) | Written by hand inside `Fusion`, not modeled; used only inside the process | [03](03_CoreAndGeneral.md#77-defining-a-new-error-domain) |
 
 Three design decisions are worth knowing:
 
@@ -795,7 +818,7 @@ All values in this section are illustrative. The owner guides check them against
 
 | Communication | Binding or protocol | Details (illustrative) | Owner guides |
 | --- | --- | --- | --- |
-| `CameraService` | SOME/IP, secured with (D)TLS | Service ID `0x1001`, instance ID `0x0001`, server port 30501 on `HPC` | 08, 14 |
+| `CameraService` | SOME/IP over TCP, secured with TLS | Service ID `0x1001`, instance ID `0x0001`, TCP server port 30501 on `HPC`; method `SetExposureMode` `0x0001`, getter of `CameraStatus` `0x0002`, event `Image` `0x8001`, notifier of `CameraStatus` `0x8002`, event group `CameraEvents` 1 | [02](02_Manifests.md#96-worked-example-cameraservice-between-cameradriver-and-fusion), 08, 14 |
 | `AdasStatusService` to `Cockpit` | SOME/IP | Service ID `0x1002`, instance ID `0x0001` | 08 |
 | Service discovery for SOME/IP | SOME/IP-SD | UDP port 30490, multicast address `239.192.255.251` | 08 |
 | `ObjectListService` | DDS | Domain ID 1, topic `AdasObjectList` | 08 |
@@ -859,7 +882,7 @@ The Adaptive Platform communicates over Ethernet at the data link layer (*Platfo
 | Update | A Software Package with `AdasCluster` 1.1.0. It contains `fusion` 1.1.0 and the new version of `FusionParams`. | 11, 13 |
 | Package authenticity | The package is signed; UCM verifies it with `PackageVerificationKey` | 13, 14 |
 | UCM client | V-UCM on `TelematicsUnit`, which receives the package from the `Backend` through the OTA Client | 13 |
-| Activation | Through `MachineFG.Verify`, coordinated by UCM and State Management | 05, 13 |
+| Activation | Through the `Verify` state of `ADAS`, the Function Group of `AdasCluster`, coordinated by UCM and State Management | 05, 13 |
 | Rollback | If the verification fails, UCM rolls back to `AdasCluster` 1.0.0 | 13 |
 
 The update follows the three phases of UCM: preparation (transfer and processing), activation, and cleanup (*Platform Design*, Section 13.4). Guide 13 tells the whole story.
@@ -871,9 +894,10 @@ The update follows the three phases of UCM: preparation (transfer and processing
 | Name (illustrative) | Kind | Used by | Purpose | Owner guides |
 | --- | --- | --- | --- | --- |
 | `OemRootCa` | X.509 root certificate | Communication Management, UCM | Root of trust for all certificates | 14 |
-| `HpcDeviceCert`, `HpcDeviceKey` | X.509 certificate and private key of `HPC` | Communication Management | (D)TLS for the SOME/IP communication with `Cockpit` | 08, 14 |
+| `HpcDeviceCert`, `HpcDeviceKey` | X.509 certificate and private key of `HPC` | Communication Management | TLS for the SOME/IP communication of `CameraService` with `Cockpit` | 08, 14 |
 | `PackageVerificationKey` | Public key | UCM | Verifies the signature of Software Packages | 13, 14 |
 | `CalibrationMacKey` | Symmetric key | `Storage` | MAC over `CalibrationKvs` | 11, 14 |
+| `PlatformVendorCert`, `AdasSupplierCert` | X.509 certificates (ECC) of the vendors of `HpcPlatformCore` and `AdasCluster`, issued under `OemRootCa` | UCM | Vendor signature of each Software Cluster | [02](02_Manifests.md#104-worked-example-adascluster-and-hpcplatformcore), 13, 14 |
 
 The trust chain of the boot process starts at a Trust Anchor in protected memory, as the [EM guide](04_ExecutionManagement.md#121-trusted-platform-basics) explains.
 
@@ -883,7 +907,7 @@ The trust chain of the boot process starts at a Trust Anchor in protected memory
 | --- | --- | --- | --- |
 | `Fusion` | Use `CameraService`. No other process on `HPC` may use it. | IAM | 15 |
 | `CameraDriver` | Call `SetCalibration`. Other consumers may only call `GetCalibration`. | IAM | 15 |
-| `StateManager` | Use `StateClient` for `MachineFG` and `ADAS` through `FunctionGroupPortMapping`. No other process may. | EM | [04](04_ExecutionManagement.md#126-function-group-access-control) |
+| `StateManager` | Use `StateClient` for `MachineFG` and `ADAS` through the Function Group Port Mappings `StateManagerToMachineFG` and `StateManagerToADAS`. No other process may. | EM | [04](04_ExecutionManagement.md#126-function-group-access-control) |
 
 *Denial scenario (guide 15):* `FusionLite` is misconfigured and tries to subscribe to `CameraService`. IAM denies the access and a security event is reported.
 
@@ -920,10 +944,10 @@ Each guide tells one or more stories on the running example. Use this table to f
 
 | Guide | Scenario on the running example |
 | --- | --- |
-| 01 | Map every node and process of `HPC` to the architecture and to the clusters it relies on |
-| 02 | The manifests of `CameraDriver`, `Fusion` and `CameraService` as real ARXML |
-| 03 | `Fusion` handles a failed service call with `Result` and `Future` |
-| 04 | Startup, the `ADAS` transitions, the `Fusion` crash and shutdown ([EM guide, Chapter 15](04_ExecutionManagement.md#15-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu)) |
+| [01](01_PlatformOverview.md#9-the-running-example-on-the-architecture-map) | Map every node and process of `HPC` to the architecture and to the clusters it relies on |
+| [02](02_Manifests.md#1216-the-running-example-complete-configuration) | The manifests of `CameraDriver`, `Fusion` and `CameraService` as real ARXML |
+| [03](03_CoreAndGeneral.md#16-end-to-end-walkthrough-a-day-of-error-handling-in-fusion) | `Fusion` handles a failed service call with `Result` and `Future`; an application error, a late input and a configuration error that ends in a Violation |
+| 04 | Startup, the `ADAS` transitions, the `Fusion` crash and shutdown ([EM guide, Chapter 16](04_ExecutionManagement.md#16-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu)) |
 | 05 | `MachineFG` from `Startup` to `Driving`; `ADAS` from `Normal` to `Degraded` after a PHM report or a diagnostic request; ECU reset |
 | 06 | Supervision of `Fusion` and `CameraDriver`; a failed supervision leads to `ADAS.Degraded` |
 | 07 | Proxy and skeleton code for `CameraService`, `ObjectListService` and `CalibrationDataService` |
@@ -961,7 +985,7 @@ Each guide tells one or more stories on the running example. Use this table to f
 4. **The running example** `HPC` is defined in [Chapter 6](#6-the-running-example-the-hpc-reference-system). Its names never change, and each element names the guide that explains it.
 5. **The series glossary** in [Appendix A](#appendix-a-series-glossary-and-acronyms) defines every term once, for all guides.
 
-Continue with guide 01, *Adaptive Platform Overview and Architecture*.
+Continue with guide 01, [*Adaptive Platform Overview and Architecture*](01_PlatformOverview.md).
 
 ---
 
@@ -975,12 +999,16 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | --- | --- |
 | AA | Adaptive Application |
 | AAG | Automotive API Gateway |
+| ADL | Argument-dependent lookup: the C++ rule that finds a function in the namespaces of its arguments |
 | AP | (AUTOSAR) Adaptive Platform |
 | API | Application Programming Interface |
+| APMC | Adaptive Platform Machine Configuration |
 | ARA | AUTOSAR Runtime for Adaptive Applications: the set of programming interfaces available to Adaptive Applications |
+| ARTI | AUTOSAR Run-Time Interface |
 | ARXML | AUTOSAR XML, the file format of AUTOSAR models and manifests |
 | ASIL | Automotive Safety Integrity Level (ISO 26262) |
 | AUTOSAR | AUTomotive Open System ARchitecture |
+| BSW | Basic Software (Classic Platform) |
 | CAN | Controller Area Network |
 | CM | Communication Management. (In the AUTOSAR *Glossary*, CM also stands for the Classic "Communication Module".) |
 | CP | (AUTOSAR) Classic Platform |
@@ -993,6 +1021,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | DTLS | Datagram Transport Layer Security |
 | E2E | End-to-End (protection of data exchange) |
 | ECU | Electronic Control Unit |
+| EcuC | ECU Configuration (Classic Platform) |
 | EM | Execution Management |
 | EXP | Explanation (AUTOSAR document type) |
 | FC | Functional Cluster |
@@ -1000,18 +1029,24 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | FG | Function Group |
 | FO | (AUTOSAR) Foundation |
 | gPTP | generalized Precision Time Protocol (IEEE 802.1AS) |
+| GST | Generic Structure Template |
 | HPC | High performance computer. In code font, `HPC` is the machine of the running example. |
 | HSM | Hardware Security Module |
 | IAM | Identity and Access Management |
+| IDB | Implementation-defined behavior |
 | IdsM | Intrusion Detection System Manager |
 | IdsR | Intrusion Detection System Reporter |
 | I-PDU | Interaction Layer Protocol Data Unit |
+| IFC | Inter-Functional-Cluster (interface) |
 | IPC | Inter-Process Communication |
 | LT | Log and Trace |
 | MAC | Message Authentication Code; also Media Access Control (Ethernet). The context makes clear which one is meant. |
+| MISRA | Motor Industry Software Reliability Association; here its C++:2023 coding guidelines |
 | NM | Network Management |
 | OEM | Original Equipment Manufacturer (the vehicle manufacturer) |
 | OS | Operating System |
+| OSEK | The automotive operating system standard on which the Classic OS is based (ISO 17356-3) |
+| OSI | Operating System Interface (functional cluster). Not to be confused with the ISO OSI reference model of network layers. |
 | OTA | Over-The-Air (software update) |
 | PDP | Policy Decision Point |
 | PDU | Protocol Data Unit |
@@ -1026,8 +1061,10 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | RDS | Raw Data Stream |
 | RID | Routine Identifier, a UDS identifier for a routine |
 | RS | Requirements Specification (AUTOSAR document type) |
+| RTE | Runtime Environment (Classic Platform) |
 | S2S | Signal-to-Service translation. (The AUTOSAR *Glossary* uses SST, Signal Service Translation.) |
 | SD | Service Discovery |
+| SEooC | Safety Element out of Context |
 | SEv | (Onboard) Security Event |
 | SHWA | Safe Hardware Acceleration |
 | SM | State Management |
@@ -1036,6 +1073,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | SOME/IP | Scalable service-Oriented MiddlewarE over IP |
 | SOME/IP-SD | SOME/IP Service Discovery |
 | SOVD | Service-Oriented Vehicle Diagnostics (ASAM) |
+| SWC | Software Component |
 | SWCL | Software Cluster |
 | SWS | Software Specification (AUTOSAR document type) |
 | TCP | Transmission Control Protocol |
@@ -1043,112 +1081,174 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | TPS | Template Specification (AUTOSAR document type), for example the Manifest Specification |
 | TR | Technical Report (AUTOSAR document type) |
 | TSync | Time Synchronization. (The AUTOSAR *Glossary* uses TSY.) |
+| UB | Undefined behavior |
 | UCM | Update and Configuration Management |
 | UDP | User Datagram Protocol |
 | UDS | Unified Diagnostic Services (ISO 14229-1) |
+| UTF-8 | The Unicode encoding used for all strings in ARA |
+| UUID | Universally Unique Identifier, a 128-bit identifier |
 | V-UCM | Vehicle Update and Configuration Management |
 | VISS | Vehicle Information Service Specification (COVESA) |
 | VSS | Vehicle Signal Specification (COVESA) |
+| WCET | Worst-case execution time |
+| XSD | XML Schema Definition |
 
 ### A.2 Glossary
 
 | Term | Meaning | Explained in |
 | --- | --- | --- |
 | Abnormal Termination | A process ended with an exit status other than `0`, for example after a crash. | [04, 2.5](04_ExecutionManagement.md#25-termination-events) |
+| AbortHandler | A function `void() noexcept` that `ara::core::Abort` calls, in reverse order of installation, before it ends the process | [03, 10.4](03_CoreAndGeneral.md#104-abort-handlers) |
 | Access Control Decision | The yes-or-no answer whether a requested operation is permitted. It is based on the identity of the caller and the Access Control Policy. | 15 |
 | Access Control Policy | A rule, bound to a target such as a service interface, that states which identity is needed to access it. | 15 |
 | Activation (update) | The critical phase of a software update in which the new software is switched on and can still be rolled back. | 13 |
 | Adaptive Application | Software that delivers a function. It consists of one or more Executables. It uses only ARA and the POSIX profile PSE51, so that it can be deployed on any Adaptive Platform. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
-| Adaptive Platform | AUTOSAR's software platform for high-performance ECUs with service-oriented communication and updatable software. The term means both the standard and an implementation of it. | [00, 1.1](#11-the-adaptive-platform-in-one-page), 01 |
-| Adaptive Platform Foundation | The part of the platform that provides the fundamental functions, such as Execution Management, Communication Management and Persistency, as library-based APIs. | [00, 2.3](#23-functional-clusters-and-their-guides), 01 |
-| Adaptive Platform Services | Standard platform services, such as UCM and State Management, that are provided as services over Communication Management. | [00, 2.3](#23-functional-clusters-and-their-guides), 01 |
+| Adaptive Platform | AUTOSAR's software platform for high-performance ECUs with service-oriented communication and updatable software. The term means both the standard and an implementation of it. | [00, 1.1](#11-the-adaptive-platform-in-one-page), [01, 1.1](01_PlatformOverview.md#11-what-is-the-adaptive-platform) |
+| Adaptive Platform Foundation | The part of the platform that provides the fundamental functions, such as Execution Management, Communication Management and Persistency, as library-based APIs. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 3.3](01_PlatformOverview.md#33-four-groups-of-functional-clusters) |
+| Adaptive Platform Services | Standard platform services, such as UCM and State Management, that are provided as services over Communication Management. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 3.3](01_PlatformOverview.md#33-four-groups-of-functional-clusters) |
 | Alive Supervision | A PHM check that a supervised entity reports its checkpoint neither too often nor too rarely. | 06 |
-| Application Design | The design-related part of the model: data types, service interfaces, persistency interfaces and other interfaces that an application uses, independent of any deployment. | 02 |
-| ARA | The AUTOSAR Runtime for Adaptive Applications: the standard C++ interfaces that the functional clusters provide to applications. | [00, 1.1](#11-the-adaptive-platform-in-one-page), 01 |
-| AUTOSAR XML (ARXML) | The XML format in which AUTOSAR models, including manifests, are exchanged. | 02 |
+| APMC | The M1-based target-configuration model with a definition side and a value side that replaces manifest content step by step. | [02, 11.9](02_Manifests.md#119-looking-ahead-apmc) |
+| Application Design | The design-related part of the model: data types, service interfaces, persistency interfaces and other interfaces that an application uses, independent of any deployment. | [02, 2.3](02_Manifests.md#23-the-kinds-of-manifest) |
+| ARA | The AUTOSAR Runtime for Adaptive Applications: the standard C++ interfaces that the functional clusters provide to applications. | [00, 1.1](#11-the-adaptive-platform-in-one-page), [01, 3.2](01_PlatformOverview.md#32-ara-the-autosar-runtime-for-adaptive-applications) |
+| ARElement | A model element that can be defined stand-alone in a package. | [02, 2.4](02_Manifests.md#24-design-elements-and-uploadable-elements) |
+| ARPackage | A package of the model. It establishes a name space and is an open set: several files may contribute to it. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
+| ARTI | The AUTOSAR Run-Time Interface between build tools and debugging and tracing tools. The OSI defines ARTI trace messages for processes and tasks. | [01, 7.10](01_PlatformOverview.md#710-os-tracing-with-arti) |
+| `≪atpSplitable≫` | Stereotype of a property whose content may be spread over several files. | [02, 3.7](02_Manifests.md#37-many-files-one-model) |
+| `≪atpUriDef≫` | Stereotype of a reference whose path carries the information, even if the target is not on the Machine. | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration), [02, 9.4](02_Manifests.md#94-from-port-to-instancespecifier) |
+| Async-signal-safe | Safe to call from a POSIX signal handler. No ARA API is | [03, 12.7](03_CoreAndGeneral.md#127-async-signal-safety) |
+| AUTOSAR XML (ARXML) | The XML format in which AUTOSAR models, including manifests, are exchanged. | [02, 3.1](02_Manifests.md#31-the-anatomy-of-an-arxml-file) |
 | Authenticity | The property that data comes from the source it claims to come from. | 14 |
 | Automotive API Gateway | The functional cluster that gives clients access to selected vehicle data through VISS and VSS. Not covered by the series. | [00, 2.4](#24-topics-outside-the-series) |
+| Basic Software (BSW) | In the Classic Platform, the infrastructure software of an ECU below the RTE: services, ECU abstraction, microcontroller abstraction and complex drivers. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
 | Certificate | An X.509 document that binds a public key to an identity and is signed by a certificate authority. | 14 |
 | Checkpoint | A point in the control flow of a process that the process reports to PHM, so that PHM can supervise its timing and order. | 06 |
-| Classic Platform | AUTOSAR's software platform for deeply embedded ECUs with high demands on predictability, safety and responsiveness. | 01 |
+| Class table | The table of the TPS that lists the attributes of a meta-class with type, multiplicity and kind. | [02, 3.8](02_Manifests.md#38-reading-a-class-table-of-the-tps) |
+| Classic Platform | AUTOSAR's software platform for deeply embedded ECUs with high demands on predictability, safety and responsiveness. | [01, 2.1](01_PlatformOverview.md#21-the-problem-the-classic-platform-solves) |
 | Client | A software entity that uses the services of a server. | 07 |
 | Companion Process | A small reporting process that reports `kRunning` on behalf of a non-reporting process once that process is really usable. | [04, 5.4](04_ExecutionManagement.md#54-non-reporting-processes-and-the-companion-pattern) |
-| Constraint | A rule on the meta-model, cited as `[constr_nnnn]`. A model that violates it is invalid. | [00, 5.1](#51-requirement-and-constraint-ids), 02 |
+| Compositionality | The behavior of a component does not depend on the overall system load and configuration; an important property of deterministic systems. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
+| ComSpec | A qualification of the use of one element of an interface at one port, for example the initial value of a field. | [02, 5.2](02_Manifests.md#52-ports-how-software-talks-to-the-outside) |
+| Configuration class | In the Classic Platform, the time at which a parameter is fixed: pre-compile time, link time or post-build time. | [01, 2.3.4](01_PlatformOverview.md#234-the-price-no-flexibility-after-build) |
+| Constraint | A numbered rule on the meta-model, cited as `[constr_nnnn]`. It must hold from its imposition time on; a model that violates it at that point is invalid. | [00, 5.1](#51-requirement-and-constraint-ids), [02, 2.5](02_Manifests.md#25-constraints-and-imposition-times) |
+| Context ID | The four-character Log and Trace identifier of a cluster's messages, for example `#COR` | [03, 12.5](03_CoreAndGeneral.md#125-logging-and-tracing-conventions) |
+| Continuation | A callable registered with `Future::then` that runs when the result is ready | [03, 9.5](03_CoreAndGeneral.md#95-continuations-with-then) |
+| Corruption | The corruption of a system resource, such as a stack overflow or a bit flip; non-recoverable | [03, 6.4](03_CoreAndGeneral.md#64-corruptions-and-failed-default-allocations) |
+| CppImplementationDataType | A data type with its C++ binding; its category selects the C++ form. | [02, 6.4](02_Manifests.md#64-data-types) |
 | CurrentState | The state a Function Group is in when a transition starts. | [04, 8.1](04_ExecutionManagement.md#81-vocabulary) |
-| Daemon-based | A functional cluster that is intended to be implemented with its own daemon process. | [00, 2.3](#23-functional-clusters-and-their-guides), 01 |
+| Daemon-based | A functional cluster that is intended to be implemented with its own daemon process. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
 | Data Identifier (DID) | A UDS identifier of a data record that a tester can read or write, such as a software version. | 12a |
 | Deadline Supervision | A PHM check that the time between two checkpoints stays within configured minimum and maximum limits. | 06 |
+| Design model | Model content that describes the system across compute nodes and is exchanged between roles, often as a contract. | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration) |
+| Determinism | The property that the same inputs always give the same outputs, within a known, bounded time, every time. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
 | Diagnostic Address | The address under which a diagnostic server is reached. A machine can have one for all Software Clusters or one per Software Cluster. | 12a |
 | Diagnostic Event | The atomic unit of fault detection in Diagnostic Management. Its status reflects the latest result of a diagnostic monitor; one or more events make up a DTC. | 12b |
 | Diagnostic Monitor | The logic, usually in an application, that tests for a fault and reports the result to a diagnostic event. | 12b |
 | Diagnostic Trouble Code (DTC) | A code that identifies a detected fault in the vehicle. Diagnostic Management stores it together with snapshot and extended data. | 12b |
 | E2E Protection | Safety mechanisms that detect corrupted, lost, repeated or delayed data between sender and receiver. An E2E profile defines the exact mechanism. | 08 |
-| ECU | Electronic Control Unit: an embedded computer with at least one CPU and its peripherals in one housing, connected to vehicle networks, sensors and actuators. | 01 |
+| ECU | Electronic Control Unit: an embedded computer with at least one CPU and its peripherals in one housing, connected to vehicle networks, sensors and actuators. | [01, 2.1](01_PlatformOverview.md#21-the-problem-the-classic-platform-solves) |
+| Error | The inability of an assumed-bug-free API function to fulfill its purpose; recoverable; returned in `Result` or `Future` | [03, 6.2](03_CoreAndGeneral.md#62-errors-are-returned-never-thrown) |
+| Error code value | The integer part of an `ErrorCode`, from the enumeration of its domain | [03, 7.1](03_CoreAndGeneral.md#71-errorcode-value-domain-and-support-data) |
+| Error domain | The context of a set of error codes: identifier, name, messages, exception type | [03, 7.3](03_CoreAndGeneral.md#73-errordomain-identity-name-and-message) |
+| Error domain identifier | The unique 64-bit number that identifies an error domain | [03, 7.4](03_CoreAndGeneral.md#74-error-domain-identifiers) |
 | Event (service element) | A message that a service provider sends to all subscribed consumers. | 07 |
 | Event Memory | The part of Diagnostic Management that stores DTCs and their data. | 12b |
-| Executable | A program file with exactly one `main()` function. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
+| Executable | A program file with exactly one `main()` function. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process), [02, 5.3](02_Manifests.md#53-the-executable-and-its-root-prototype) |
+| Execution Budget | In the Classic OS, the statically configured maximum execution time of a task or interrupt handler, enforced by timing protection. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
 | Execution Dependency | "Start me only after process X is *Running* (or has *Terminated*)." It controls order, not whether a process starts. | [04, 6](04_ExecutionManagement.md#6-execution-dependencies-startup-and-shutdown-ordering) |
-| Execution Manifest | The configuration of an Executable's processes: states, arguments, scheduling, dependencies, timeouts and more. | [04, 4.2](04_ExecutionManagement.md#42-manifest-types), 02 |
+| Execution Manifest | The configuration of an Executable's processes: states, arguments, scheduling, dependencies, timeouts and more. | [04, 4.1](04_ExecutionManagement.md#41-where-the-configuration-lives), [02, 8](02_Manifests.md#8-the-execution-manifest) |
 | Execution State | The state of a process as seen by the process itself. The only reportable value is `kRunning`. | [04, 5.1](04_ExecutionManagement.md#51-two-views-of-a-process-execution-state-and-process-state) |
-| ExecutionError | A number (`std::uint32_t`) that identifies why a process failed. It is configured per process, with the default `1`. | [04, 13.6](04_ExecutionManagement.md#136-executionerrorevent-and-executionerror) |
-| ExecutionErrorEvent | The event that tells State Management which Function Group failed, together with its `ExecutionError`. | [04, 13.6](04_ExecutionManagement.md#136-executionerrorevent-and-executionerror) |
+| ExecutionError | A number (`std::uint32_t`) that identifies why a process failed. It is configured per process, with the default `1`. | [04, 14.6](04_ExecutionManagement.md#146-executionerrorevent-and-executionerror) |
+| ExecutionErrorEvent | The event that tells State Management which Function Group failed, together with its `ExecutionError`. | [04, 14.6](04_ExecutionManagement.md#146-executionerrorevent-and-executionerror) |
+| Executor | An `ara::core` object that runs callables asynchronously in a thread-safe context | [03, 11.12](03_CoreAndGeneral.md#1112-executor) |
+| Explicitly aborting an Operation | Immediately aborting an API call by calling `ara::core::Abort`, usually after a Violation | [03, 10.3](03_CoreAndGeneral.md#103-abort) |
+| Failed Default Allocation | The default memory allocation of the framework cannot satisfy a request; handled like a Non-Standardized Violation | [03, 6.4](03_CoreAndGeneral.md#64-corruptions-and-failed-default-allocations) |
+| Failure transparent | A function that always succeeds: no errors, `noexcept`, no `Result` or `Future` | [03, 2.5](03_CoreAndGeneral.md#25-thread-safety-and-recoverability) |
 | Field | A service element that holds a value. Consumers can get it, set it and be notified when it changes. | 07 |
 | File Storage | A Persistency storage location in which a process can create files, like a directory without subdirectories. | 11 |
 | Firewall | The functional cluster that configures the filtering of network traffic according to rules from the Machine Manifest. | 16 |
+| Forwarding header | `ara/core/core_fwd.h`, which declares most `ara::core` types without defining them | [03, 12.2](03_CoreAndGeneral.md#122-header-files) |
 | Foundation | The AUTOSAR standard that holds what the Classic and the Adaptive Platform have in common, such as the protocols and the glossary. | [00, 4.4](#44-how-autosar-documents-are-named) |
+| Foundation (standard) | The AUTOSAR standard that contains the artifacts common to the Classic and the Adaptive Platform, such as protocols and common requirements, to ensure interoperability. | [01, 1.2](01_PlatformOverview.md#12-three-autosar-standards-adaptive-classic-and-foundation) |
 | Freedom From Interference | The guarantee that a faulty part of the system cannot disturb unrelated parts. | [04, 11.1](04_ExecutionManagement.md#111-why-resource-management-matters) |
-| Function Group | A named group of processes that are switched on and off together. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
+| Function Group | A named group of processes that are switched on and off together. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states), [02, 7.5](02_Manifests.md#75-function-groups-and-their-states) |
 | Function Group State | One mode of a Function Group, which defines the set of processes that run. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
 | FunctionGroupPortMapping | The manifest element that allows one State Management process to control one Function Group. | [04, 12.6](04_ExecutionManagement.md#126-function-group-access-control) |
-| Functional Cluster | A logical group of platform functionality, such as Execution Management, with its own specification and API. | [00, 2.3](#23-functional-clusters-and-their-guides), 01 |
+| Functional Cluster | A logical group of platform functionality, such as Execution Management, with its own specification and API. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 5](01_PlatformOverview.md#5-the-functional-clusters-of-r25-11) |
 | Graceful Degradation | Continuing to operate with reduced functionality when errors occur, instead of failing completely. In the running example, `ADAS.Degraded`. | 05, 06 |
-| Hypervisor | Low-level software that runs several virtual machines on one physical machine. | 01 |
+| Hypervisor | Low-level software that runs several virtual machines on one physical machine. | [01, 4.3](01_PlatformOverview.md#43-the-machine) |
 | Identity and Access Management | The framework that controls which Adaptive Applications may access which service interfaces and platform interfaces. | [00, 2.3](#23-functional-clusters-and-their-guides), 15 |
 | Identity Information | The properties of an application on which access control decisions are based. | 15 |
-| InstanceSpecifier | A path in the model that identifies a configured element, such as a port, from code. Example: `StateManager/Root/AdasFgPort`. | 03 |
+| Implementation-defined behavior | Behavior chosen and documented by the platform implementation; vendor-specific behavior is the same | [03, 2.4](03_CoreAndGeneral.md#24-undefined-implementation-defined-and-vendor-specific-behavior) |
+| Imposition time | The point in the workflow at which a constraint must hold, for example `IT_BefAraApiGen` or `IT_Mani`. | [02, 2.5](02_Manifests.md#25-constraints-and-imposition-times) |
+| Initial Process | A process with management rights, for example to determine the exit status, over all processes of the Adaptive Platform. The OS shall allow starting EM as the Initial Process. | [01, 7.4](01_PlatformOverview.md#74-processes-threads-and-isolation) |
+| Instance reference | A reference that navigates from a base through context elements to a target in an instance tree. Written as `-IREF`. | [02, 2.2](02_Manifests.md#22-types-prototypes-and-instance-references), [02, 3.5](02_Manifests.md#35-instance-references--iref) |
+| InstanceSpecifier | A path in the model that identifies a configured element, such as a port, from code. Example: `/fusion/Root/CameraRPort`. | [02, 9.4](02_Manifests.md#94-from-port-to-instancespecifier), [03, 11.11](03_CoreAndGeneral.md#1111-instancespecifier) |
 | Integrity | The property that data has not been changed or destroyed in an unauthorized way. | 14 |
+| Inter-Functional-Cluster (IFC) interface | An interface that one functional cluster provides to other clusters. Not part of ARA and not a formal requirement; described in an annex of the SWS. | [01, 6.2](01_PlatformOverview.md#62-how-clusters-talk-to-each-other) |
 | Intrusion Detection System | The system that detects, records and reports security events. It consists of security sensors, the IdsM and the IdsR. | 16 |
 | Intrusion Detection System Manager | The functional cluster that collects security events, qualifies them by rules, and stores or forwards the qualified events. | 16 |
 | I-PDU | A protocol data unit that carries one or more signals between ECUs. | 08 |
 | Key-Value Storage | A Persistency storage location that holds key-value pairs. | 11 |
 | Language Binding | How a service is presented to the programmer, for example as generated C++ proxy and skeleton classes. | 07 |
+| Library-based | A functional cluster whose interface library is linked into the application and communicates with the cluster directly. | [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
 | Log and Trace | The functional cluster that lets applications and clusters send log messages to the network, a console or a file. | 10 |
 | Logical Supervision | A PHM check that checkpoints are reported in a designed order. | 06 |
-| Machine | The environment one Adaptive Platform instance runs on: an ECU, a virtual machine or a container. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
-| Machine Manifest | The machine-wide configuration. | [04, 4.2](04_ExecutionManagement.md#42-manifest-types), 02 |
+| Machine | The environment one Adaptive Platform instance runs on: an ECU, a virtual machine or a container. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process), [02, 7.3](02_Manifests.md#73-the-machine) |
+| Machine Design | The design-time placeholder of an Adaptive Machine in the system, the counterpart of the Classic `EcuInstance`. | [02, 7.2](02_Manifests.md#72-machine-design) |
+| Machine Manifest | The machine-wide configuration. | [04, 4.1](04_ExecutionManagement.md#41-where-the-configuration-lives), [02, 7](02_Manifests.md#7-system-design-machine-design-and-the-machine-manifest) |
 | Machine State | A state of the Function Group `MachineFG`. | [04, 7.3](04_ExecutionManagement.md#73-machinefg-and-machine-states) |
 | MachineFG | The mandatory Function Group that controls the machine lifecycle. | [04, 7.3](04_ExecutionManagement.md#73-machinefg-and-machine-states) |
-| Manifest | A piece of AUTOSAR model that configures the platform or the software deployed on it, and that is installed together with that software. | [04, 2.2](04_ExecutionManagement.md#22-manifests), 02 |
+| Manifest | A piece of AUTOSAR model that configures the platform or the software deployed on it, and that is installed together with that software. | [04, 2.2](04_ExecutionManagement.md#22-manifests), [02, 1.1](02_Manifests.md#11-what-is-a-manifest) |
 | Message Authentication Code | A short value computed with a secret key that proves the integrity and authenticity of data. | 14 |
+| Meta-model | The AUTOSAR vocabulary (M2) in which models (M1) are written; the XML Schema is generated from it. | [02, 2.1](02_Manifests.md#21-meta-levels-meta-model-model-and-xml-schema) |
 | Method | A service element that a consumer calls and the provider executes, possibly returning a result. | 07 |
 | Modeled message | A log message whose static parts are defined in the model, so that only the dynamic parts are sent ("non-verbose" in DLT). | 10 |
 | Modelled Process | The manifest description of one way to run an Executable (the meta-class `Process`). | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
 | monitorMode | Trusted-platform mode in which failed checks are logged, but software is still launched. | [04, 12.3](04_ExecutionManagement.md#123-launch-behavior-modes) |
+| Named constructor | A static `noexcept` function, usually `Create`, that constructs an object and returns a `Result` | [03, 10.2](03_CoreAndGeneral.md#102-building-without-exceptions) |
 | Network Binding | How a service is represented on a specific transport, for example SOME/IP or DDS: serialization and protocol. | 08 |
+| No rollback semantics | A recoverability class: the failed call may have had side effects; invariants hold | [03, 6.6](03_CoreAndGeneral.md#66-recoverability-classes) |
 | Non-modeled message | A log message that is built and sent completely at run time ("verbose" in DLT). | 10 |
 | Non-reporting Process | A process that does not report its Execution State and is considered *Running* immediately after creation. | [04, 5.4](04_ExecutionManagement.md#54-non-reporting-processes-and-the-companion-pattern) |
+| Non-Standardized Violation | A Violation specific to an implementation; ends with `Abort` or a non-`ara::core` exception | [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
 | Off (state) | The mandatory initial state of every Function Group. No processes run in it. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
+| Operating System Interface | The part of ARA that defines the operating system services available to Adaptive Applications (PSE51 and the C++ standard library), and the requirements on the operating system. | [01, 7](01_PlatformOverview.md#7-the-operating-system-interface) |
 | Operation Cycle | A period, such as one drive cycle, that Diagnostic Management uses to evaluate and age DTCs. | 12b |
+| OSEK OS | The event-triggered automotive operating system with fixed priority-based scheduling, standardized as ISO 17356-3, on which the Classic OS is based. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
 | OTA Client | An Adaptive Application that connects the vehicle's update management to the backend. | 13 |
+| Partial model | The content of one ARXML file; it shall validate against the schema but need not satisfy all constraints. | [02, 3.7](02_Manifests.md#37-many-files-one-model) |
 | Partial Network | A subset of the nodes of a network that can be woken up and put to sleep independently of the rest. | 09 |
-| Planned Dynamics | The principle that dynamic behavior is allowed during development but can be limited to defined ways for production. | [00, 1.1](#11-the-adaptive-platform-in-one-page), 01 |
+| Planned Dynamics | The principle that dynamic behavior is allowed during development but can be limited to defined ways for production. | [00, 1.1](#11-the-adaptive-platform-in-one-page), [01, 2.7](01_PlatformOverview.md#27-determinism-on-the-adaptive-platform) |
+| Platform extension interface | A standardized interface through which the OEM extends the platform: a callout, a callback or a plugin. | [01, 3.5](01_PlatformOverview.md#35-standardized-and-non-standardized-parts) |
 | PLATFORM_CORE | The category of the SoftwareCluster that carries `MachineFG`. There is exactly one per machine. | [04, 7.3](04_ExecutionManagement.md#73-machinefg-and-machine-states) |
 | Policy Decision Point | The logic of IAM that decides whether a request is allowed. | 15 |
 | Policy Enforcement Point | The logic of IAM that enforces the decision of the Policy Decision Point. | 15 |
+| PortPrototype | A port of a software component, provided (`PPortPrototype`) or required (`RPortPrototype`), typed by a port interface. | [02, 5.2](02_Manifests.md#52-ports-how-software-talks-to-the-outside) |
 | Pre-mapping | Loading a process completely before it runs, to avoid demand-loading delays. | [04, 11.4](04_ExecutionManagement.md#114-process-level-memory-settings) |
 | Process | The running OS process that EM creates from a Modelled Process. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
 | Process State | The state of a process as tracked by EM: `Idle`, `Starting`, `Running`, `Terminating`, `Terminated`. | [04, 5.1](04_ExecutionManagement.md#51-two-views-of-a-process-execution-state-and-process-state) |
-| Processed Manifest | A manifest converted into a platform-specific format for fast reading at startup. | [04, 4.2](04_ExecutionManagement.md#42-manifest-types) |
+| ProcessDesign | The design-time stand-in for a process that will be defined in the Execution Manifest. | [02, 5.4](02_Manifests.md#54-process-design-a-stand-in-for-a-future-process) |
+| Processed Manifest | A manifest converted into a platform-specific format for fast reading at startup. | [04, 4.1](04_ExecutionManagement.md#41-where-the-configuration-lives), [02, 11.8](02_Manifests.md#118-how-the-platform-consumes-manifests-at-run-time) |
 | Proxy (Service Proxy) | The generated class with which a consumer uses a service, as if it were a local object. | 07 |
-| PSE51 | The minimal real-time POSIX profile. Adaptive Applications may use only this part of the OS API. | 01 |
+| PSE51 | The minimal real-time POSIX profile. Adaptive Applications may use only this part of the OS API. | [01, 7.2](01_PlatformOverview.md#72-pse51-for-applications-full-posix-for-the-platform) |
 | Qualified Security Event (QSEv) | A security event that the IdsM has filtered and qualified by its rules. | 16 |
 | Raw Data Stream | Unstructured bytes exchanged with an external device, such as a sensor, over TCP, UDP or IEEE 1722. It is a functional cluster of its own, no longer part of Communication Management. | 09 |
+| Rebind | The assignment behavior of `Optional<T&>` and `Result<T&>`: the object refers to the new target afterwards | [03, 11.5](03_CoreAndGeneral.md#115-optional-and-variant) |
+| Recommended package | The package name that the meta-model proposes for an element kind, for example `ServiceInterfaces`. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
+| Registry | An internal component that gives other clusters access to manifest information. Not used by applications. | [01, 5.7](01_PlatformOverview.md#57-configuration), [02, 11.8](02_Manifests.md#118-how-the-platform-consumes-manifests-at-run-time) |
 | Reporting Process | A process that reports `kRunning` using `ExecutionClient`. This is the normal case. | [04, 2.4](04_ExecutionManagement.md#24-process-flavors) |
 | RequestedState | The target state of a transition. | [04, 8.1](04_ExecutionManagement.md#81-vocabulary) |
 | Requirement ID | The unique identifier of a requirement in a specification, such as `[SWS_EM_01050]`. | [00, 5.1](#51-requirement-and-constraint-ids) |
 | ResourceGroup | A group of processes that share a CPU limit and a memory limit. | [04, 11.3](04_ExecutionManagement.md#113-resourcegroup-group-level-limits) |
+| Response time | The time between a task becoming ready and generating its response, including all preemptions. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
 | Rollback | Returning to the previous software version after an update. | 13 |
+| Rollback semantics | A recoverability class: the failed call has no negative side effects; retrying is safe | [03, 6.6](03_CoreAndGeneral.md#66-recoverability-classes) |
+| RootSwComponentPrototype | The root of the component hierarchy inside an Executable; its short name is part of every `InstanceSpecifier`. | [02, 5.3](02_Manifests.md#53-the-executable-and-its-root-prototype) |
 | Routine | A function in the ECU that a tester starts, stops or queries with the UDS service RoutineControl. | 12a |
+| Runnable (Runnable Entity) | In the Classic Platform, a part of a software component that the RTE can start and that is executed in the context of an OS task. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
+| Runtime Environment (RTE) | In the Classic Platform, the generated layer between the application software components and the Basic Software. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
+| Safety Element out of Context (SEooC) | A safety element developed without a specific vehicle context, based on assumptions; at best, the architecture of the Adaptive Platform can be considered one. | [01, 8.3](01_PlatformOverview.md#83-safety) |
+| ScheduleTable | In the Classic OS, a statically defined set of expiry points that activate tasks or set events at fixed offsets. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
 | Secure Channel | A communication channel that provides at least integrity and authenticity, and authenticates at least one side. | 08, 14 |
 | Security Event | An event related to the security of the ECU that should be reported for later analysis. | 16 |
 | Self-terminating Process | A process that is allowed to exit on its own, typically a one-shot job. | [04, 5.6](04_ExecutionManagement.md#56-self-terminating-processes) |
@@ -1156,40 +1256,61 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Service | Functionality with a published interface and behavior that a provider offers to consumers. | 07 |
 | Service Discovery | The Communication Management mechanism with which applications find each other's services. It is the preferred way to sequence applications. | [04, 6.6](04_ExecutionManagement.md#66-prefer-service-discovery-for-applications), 07 |
 | Service Instance | One concrete provision of a service interface, with its own identity. | 07 |
-| Service Instance Manifest | The configuration of how service-oriented communication is deployed on the network, including E2E, security and logging settings. | [04, 4.2](04_ExecutionManagement.md#42-manifest-types), 02, 08 |
+| Service Instance Manifest | The configuration of how service-oriented communication is deployed on the network, including E2E, security and logging settings. | [04, 4.1](04_ExecutionManagement.md#41-where-the-configuration-lives), [02, 9](02_Manifests.md#9-the-service-instance-manifest-and-the-instancespecifier), 08 |
 | Service Interface | The definition of a service: its events, methods and fields. | 07 |
 | Service Registry | The part of Communication Management with which providers register their services and consumers find them. | 07 |
+| Service-based | A functional cluster that offers its functions as services through Communication Management. | [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
 | Service-Oriented Communication | Communication in which partners are not fixed at design time but are discovered and bound at run time. | 07 |
+| ServiceInstanceToPortPrototypeMapping | The element that connects one port, in one process, to one service instance. | [02, 9.3](02_Manifests.md#93-connecting-a-port-to-a-service-instance) |
+| ServiceInterfaceDeployment | The representation of a service interface on one transport, for example its SOME/IP IDs. | [02, 9.1](02_Manifests.md#91-service-interface-deployment) |
+| Shared state | The object shared by a `Promise` and its `Future` that holds the value or error | [03, 9.1](03_CoreAndGeneral.md#91-future-and-promise-in-plain-words) |
+| Short name | The identifier of a model element within its name space; a C identifier, unique case-insensitively. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
 | Signal | A piece of data, such as the vehicle speed, that is exchanged in signal-based communication, typically in a PDU on CAN. | 08 |
 | Signal-to-Service Translation | The standardized mapping between signal-based communication and service-oriented communication, in both directions. | 08 |
 | Skeleton (Service Skeleton) | The generated base class from which a provider implements a service and connects it to Communication Management. | 07 |
 | SM control application | A project-specific application that decides which state the State Management *StateMachine* should request next. | 05 |
 | Snapshot Record | Environmental data, such as the vehicle speed, that Diagnostic Management stores when a DTC occurs. | 12b |
-| Software Cluster | The unit of deployment and update: a set of executables, manifests and data, which claims Function Groups. It is installed as one Software Package. The meta-class is `SoftwareCluster`. | [00, 6.3](#63-the-hpc-machine), 02, 13 |
-| Software Package | The unit that UCM installs: one Software Cluster plus the metadata to install it. It is digitally signed. | 13 |
+| Software Cluster | The unit of deployment and update: a set of executables, manifests and data, which claims Function Groups. It is installed as one Software Package. The meta-class is `SoftwareCluster`. | [00, 6.3](#63-the-hpc-machine), [02, 10.2](02_Manifests.md#102-software-cluster-the-uploadable-unit), 13 |
+| Software Cluster Design | The OEM's design-level contract for a Software Cluster (meta-class `SoftwareClusterDesign`). | [02, 10.1](02_Manifests.md#101-software-cluster-design-the-oems-contract) |
+| Software Package | The unit that UCM installs: one Software Cluster plus the metadata to install it. It is digitally signed. | 13, [02, 10.3](02_Manifests.md#103-software-package-and-vehicle-package) |
 | SOME/IP | An AUTOSAR protocol for service-oriented communication over IP, with its own service discovery (SOME/IP-SD). | 08 |
 | SOVD | Service-Oriented Vehicle Diagnostics, an ASAM standard for diagnostics over web technologies. | 12b |
-| StartupConfig | A reusable set of start parameters for a process. | [04, 4.3](04_ExecutionManagement.md#43-the-meta-model-elements-em-reads) |
-| StateDependentStartupConfig | Links a process to a `StartupConfig` for a set of Function Group States, with dependencies and resources. | [04, 4.3](04_ExecutionManagement.md#43-the-meta-model-elements-em-reads) |
+| Stack | An implementation of the Adaptive Platform standard by a platform vendor. | [01, 1.3](01_PlatformOverview.md#13-what-the-standard-defines-and-what-it-leaves-open) |
+| Standardized M1 model | Model content published by AUTOSAR in the top-level package `AUTOSAR`, for example `/AUTOSAR/StdTypes`. | [02, 2.1](02_Manifests.md#21-meta-levels-meta-model-model-and-xml-schema) |
+| Standardized Violation | A Violation defined by AUTOSAR, with a standardized DLT message | [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
+| StartupConfig | A reusable set of start parameters for a process. | [04, 13.5](04_ExecutionManagement.md#135-startupconfig) |
+| StateClientInterface | The port interface of the R-port through which State Management controls one Function Group (status draft in R25-11). | [04, 13.10](04_ExecutionManagement.md#1310-state-management-access-stateclientinterface-and-functiongroupportmapping) |
+| StateDependentStartupConfig | Links a process to a `StartupConfig` for a set of Function Group States, with dependencies and resources. | [04, 13.4](04_ExecutionManagement.md#134-statedependentstartupconfig-and-executiondependency), [02, 8.2](02_Manifests.md#82-state-dependent-startup-configuration) |
 | State Management | The functional cluster that decides which Function Group States are requested. | [04, 7.4](04_ExecutionManagement.md#74-division-of-responsibilities-sm-decides-em-executes), 05 |
 | StateMachine (State Management) | A configurable state machine of State Management that covers standard cases with little code. A project-specific application requests its transitions. | 05 |
 | strictMode | Trusted-platform mode in which software that fails a check is never launched. | [04, 12.3](04_ExecutionManagement.md#123-launch-behavior-modes) |
 | Supervised entity | The part of a process whose execution PHM supervises through its checkpoints. | 06 |
 | Supervised Process | A process that PHM supervises. EM informs PHM about its lifecycle. | [04, 5.9](04_ExecutionManagement.md#59-synchronization-with-platform-health-management) |
+| Support data value | Optional vendor-specific data inside an `ErrorCode`; ignored by comparisons | [03, 7.1](03_CoreAndGeneral.md#71-errorcode-value-domain-and-support-data) |
+| Target configuration | Model content whose scope is mostly local to one compute node, usually created during integration. Formerly called "deployment". | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration) |
+| Task (OS) | The smallest schedulable unit managed by the operating system; a thread in POSIX terms. | [01, 7.10](01_PlatformOverview.md#710-os-tracing-with-arti) |
 | Termination handler | The callback that `ExecutionClient` invokes, in a background thread, when `SIGTERM` arrives. | [04, 5.5](04_ExecutionManagement.md#55-terminating-a-process) |
+| Thread-safe | Callable concurrently on the same object by several threads without synchronization by the caller | [03, 12.6](03_CoreAndGeneral.md#126-thread-safety) |
 | Time Base | A synchronized time, such as `VehicleTime`, that Time Synchronization offers to applications. | 09 |
+| Timing protection | In the Classic OS, the run-time enforcement of statically configured execution budgets, lock budgets and minimum inter-arrival times. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
 | Trust Anchor | The root of trust, for example a public key in protected memory, from which all authenticity checks derive. | [04, 12.1](04_ExecutionManagement.md#121-trusted-platform-basics) |
 | Trusted Platform | A platform on which only software of verified integrity and authenticity runs. | [04, 12.1](04_ExecutionManagement.md#121-trusted-platform-basics) |
 | UDS | Unified Diagnostic Services, the diagnostic protocol of ISO 14229 that testers use. | 12a |
+| Undefined behavior | No guarantees at all, as in the C++ standard; not detected, unlike a Violation | [03, 2.4](03_CoreAndGeneral.md#24-undefined-implementation-defined-and-vendor-specific-behavior) |
 | Undefined Function Group State | A Function Group state that is not one of the modelled states: during a transition, after a failed transition, or after a crash. | [04, 10.3](04_ExecutionManagement.md#103-undefined-function-group-state) |
 | Unexpected Termination | A process ended without a justified reason, for example without being asked to, or before it reported `kRunning`. | [04, 2.5](04_ExecutionManagement.md#25-termination-events) |
 | Unrecoverable State | EM's last resort: pre-cleanup, then terminate all processes, then post-cleanup. | [04, 10.4](04_ExecutionManagement.md#104-unrecoverable-state) |
 | Update session | The period, granted by State Management, during which UCM may change the software of the machine. | 13 |
+| Uploadable element | An element derived from `UploadablePackageElement`, which is uploaded to the Machine as part of a Software Cluster. | [02, 2.4](02_Manifests.md#24-design-elements-and-uploadable-elements) |
 | Vehicle Package | A package, assembled by the OEM backend, that describes an update campaign across several ECUs. V-UCM processes it. | 13 |
+| Vehicle Services | Functional clusters that provide vehicle-level functions: V-UCM, the Automotive API Gateway and Remote Persistency. | [01, 3.3](01_PlatformOverview.md#33-four-groups-of-functional-clusters) |
 | Vehicle State Manager | An OEM-specific application that controls the vehicle-level state and interacts with V-UCM during updates. | 13 |
 | Vehicle Update and Configuration Management | The functional cluster that coordinates software updates across all ECUs of a vehicle. | [00, 2.4](#24-topics-outside-the-series), 13 |
-| Violation | A broken API contract, for example two `ExecutionClient` objects. It is logged, and the offending process is terminated. | [04, 10.1](04_ExecutionManagement.md#101-errors-and-violations) |
+| Vendor-specific error | An error that an implementation returns in addition to the specified ones, in a vendor-specific domain | [03, 7.6](03_CoreAndGeneral.md#76-vendor-specific-errors) |
+| Violation | A broken API contract, for example two `ExecutionClient` objects. It is logged, and the offending process is terminated. | [04, 10.1](04_ExecutionManagement.md#101-errors-and-violations), [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
+| Violation message | The standardized fatal DLT message of a Standardized Violation | [03, 15.3](03_CoreAndGeneral.md#153-violation-messages) |
 | Watchdog | A hardware or software timer that resets the system if it is not triggered in time. PHM triggers it. | 06 |
+| Worst-case execution time (WCET) | The longest possible execution time of a task or interrupt handler. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
 
 ---
 
@@ -1214,13 +1335,13 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 | Function Group | States | Processes |
 | --- | --- | --- |
 | `MachineFG` | `Off`, `Startup`, `Driving`, `Shutdown`, `Restart`, `Verify` | `StateManager`, `PlatformHealth`, `PowerControl` |
-| `ADAS` | `Off`, `Normal`, `Degraded` | `Storage`, `CameraDriver`, `CalibrationCheck` (Normal), `LegacyLogger`, `LoggerCompanion`, `Fusion` (Normal), `FusionLite` (Degraded) |
+| `ADAS` | `Off`, `Normal`, `Degraded`, `Verify` | `Storage`, `CameraDriver`, `CalibrationCheck` (Normal), `LegacyLogger`, `LoggerCompanion`, `Fusion` (Normal), `FusionLite` (Degraded) |
 
 ### B.3 Services, Signals and Streams
 
 | Element | Provider → consumers | Binding and IDs |
 | --- | --- | --- |
-| `CameraService` | `CameraDriver` → `Fusion`, `Cockpit` | SOME/IP `0x1001`/`0x0001`, port 30501, (D)TLS |
+| `CameraService` | `CameraDriver` → `Fusion`, `Cockpit` | SOME/IP `0x1001`/`0x0001`, TCP port 30501, TLS; namespace `hpc::camera`, version 1.0 |
 | `AdasStatusService` | `StateManager` → `InstrumentCluster`, `Cockpit` | S2S (`AdasHmi`, `0x2A0`); SOME/IP `0x1002`/`0x0001` |
 | `ObjectListService` | `Fusion` or `FusionLite` → `Storage`, `Cockpit` | DDS domain 1, topic `AdasObjectList` |
 | `CalibrationDataService` | `Storage` → `CalibrationCheck`, `Fusion`, `FusionLite`; written by `CameraDriver` | Local IPC |
@@ -1234,14 +1355,15 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 | Area | Elements |
 | --- | --- |
 | Persistency | `Storage`: `CalibrationKvs` (`CameraExtrinsics`, `RadarAlignment`), `Recordings`. `Fusion`: `FusionParams` (`TrackerTuning`) |
+| Error domains | `CameraErrors` `0x1001` (`ExposureModeNotSupported` 1); `AdasExecutionErrors` `0x1002` (`FusionFailed` 42); `FusionErrors` `0x1003`, hand-written in `Fusion` (`kInputTimeout` 1, `kCalibrationImplausible` 2) |
 | Diagnostics | DID `0x0101` `FusionSoftwareVersion`; routine `0x0201` `CalibrateCamera`; ECU reset (`0x11`); event `CameraBlocked` → DTC `0x9A1011`, snapshot `VehicleSpeed` |
-| Update | `AdasCluster` 1.0.0 → 1.1.0 (`fusion` 1.1.0, migration of `FusionParams`); activation through `MachineFG.Verify`; rollback to 1.0.0 |
+| Update | `AdasCluster` 1.0.0 → 1.1.0 (`fusion` 1.1.0, migration of `FusionParams`); activation through `ADAS.Verify`; rollback to 1.0.0. Vendor IDs `0x1111` (`HpcPlatformCore`) and `0x1234` (`AdasCluster`) |
 
 ### B.5 Security, Safety, Time and Logging
 
 | Area | Elements |
 | --- | --- |
-| Keys and certificates | `OemRootCa`, `HpcDeviceCert` and `HpcDeviceKey`, `PackageVerificationKey`, `CalibrationMacKey` (in the HSM) |
+| Keys and certificates | `OemRootCa`, `HpcDeviceCert` and `HpcDeviceKey`, `PackageVerificationKey`, `CalibrationMacKey` (in the HSM); vendor certificates `PlatformVendorCert`, `AdasSupplierCert` |
 | Access rights | Only `Fusion` uses `CameraService`; only `CameraDriver` calls `SetCalibration`; only `StateManager` uses `StateClient`; `FusionLite` is denied |
 | Security events | EM integrity check failed, IAM access denied, firewall packet dropped → IdsM |
 | Supervision | `Fusion`: 50 ms cycle, checkpoints `CycleStart`, `InputsRead`, `ObjectsPublished`, `CycleEnd`; `CameraDriver`: `ImageCaptured` |
