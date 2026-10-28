@@ -1171,7 +1171,7 @@ Both `GetResult()` and `get()` consume the result: afterwards the `Future` is in
 
 All four raise `FutureInvalidViolation` on an invalid `Future`. The numeric values of the `FutureStatus` enumerators are implementation-defined ([SWS_CORE_00361]), so compare with the enumerators, never with numbers.
 
-`wait_until` accepts a time point of any clock; in the Adaptive Platform, use `ara::core::SteadyClock` ([Section 11.10](#1110-steadyclock)). In a cyclic process such as `Fusion`, never call `wait()` without a limit: a reply that never comes would stop the cycle, and Platform Health Management would detect a missed deadline (guide 06).
+`wait_until` accepts a time point of any clock; in the Adaptive Platform, use `ara::core::SteadyClock` ([Section 11.10](#1110-steadyclock)). In a cyclic process such as `Fusion`, never call `wait()` without a limit: a reply that never comes would stop the cycle, and Platform Health Management would detect a missed deadline ([guide 06, Chapter 7](06_PlatformHealthManagement.md#7-deadline-supervision)).
 
 ### 9.5 Continuations with then
 
@@ -2500,7 +2500,7 @@ The camera image gets dark. `ExposureControl::OnCycle` sends `SetExposureMode(Ni
 
 ### 16.4 A Late Input
 
-One cycle, a radar frame arrives too late. `CollectInputs` returns `FusionErrorsErrc::kInputTimeout`, `Bind` skips `Fuse`, and `OnCycle` skips the cycle ([Section 8.8](#88-worked-example-fusion-checks-its-cycle-inputs)). If inputs stay late, this becomes a matter of supervision: Platform Health Management watches the cycle of `Fusion` (guide 06).
+One cycle, a radar frame arrives too late. `CollectInputs` returns `FusionErrorsErrc::kInputTimeout`, `Bind` skips `Fuse`, and `OnCycle` skips the cycle ([Section 8.8](#88-worked-example-fusion-checks-its-cycle-inputs)). If inputs stay late, this becomes a matter of supervision: Platform Health Management watches the cycle of `Fusion` ([guide 06, Section 17.4](06_PlatformHealthManagement.md#174-a-late-input-is-not-a-failure)).
 
 ### 16.5 A Configuration Error During Integration
 

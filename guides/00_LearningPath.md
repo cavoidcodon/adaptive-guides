@@ -214,8 +214,8 @@ Read the guides in the order of their numbers, or follow a learning path from [C
 | 02 | [Manifests and Methodology](02_Manifests.md) | Who configures what, when, and in which manifest? | AP TPS Manifest Specification | Available |
 | 03 | [`ara::core` and General Conventions](03_CoreAndGeneral.md) | How do the `ara::` APIs report errors, and how do I initialize the runtime? | AP SWS Core | Available |
 | 04 | [Execution Management](04_ExecutionManagement.md) | Who starts and stops my process, and how do state transitions work? | AP SWS Execution Management | Available |
-| 05 | State Management (`05_StateManagement.md`) | Who decides which Function Group States are active? | AP SWS State Management | Planned |
-| 06 | Platform Health Management (`06_PlatformHealthManagement.md`) | How is my process supervised, and what happens when it misbehaves? | AP SWS Platform Health Management | Planned |
+| 05 | [State Management](05_StateManagement.md) | Who decides which Function Group States are active? | AP SWS State Management | Available |
+| 06 | [Platform Health Management](06_PlatformHealthManagement.md) | How is my process supervised, and what happens when it misbehaves? | AP SWS Platform Health Management | Available |
 | 07 | Communication Management Part 1: `ara::com` Concepts and API (`07_CommunicationManagement.md`) | How do applications offer and use services in C++? | AP EXP ara::com API, AP SWS Communication Management | Planned |
 | 08 | Communication Management Part 2: Network Bindings and Signal-to-Service Translation (`08_NetworkBindings.md`) | How do services travel over SOME/IP and DDS, and how do CAN signals become services? | AP SWS Communication Management, FO PRS SOME/IP, FO PRS SOME/IP Service Discovery, FO PRS E2E | Planned |
 | 09 | Network Management, Time Synchronization and Raw Data Stream (`09_NM_TimeSync_RawDataStream.md`) | How are networks woken, clocks synchronized and raw sensor data streamed? | AP SWS Network Management, AP SWS Time Synchronization, AP SWS Raw Data Stream | Planned |
@@ -312,7 +312,7 @@ The following table maps each cluster to its guide. The columns come from two ex
 | Cryptography | `ara::crypto` | Security | Foundation | yes | 14 |
 | Intrusion Detection System Manager | `ara::idsm` | Security | Foundation | yes | 16 |
 | Firewall | `ara::fw` | Security | Foundation | yes | 16 |
-| Platform Health Management | `ara::phm` | Safety | Foundation | yes | 06 |
+| Platform Health Management | `ara::phm` | Safety | Foundation | yes | [06](06_PlatformHealthManagement.md) |
 | Safe Hardware Acceleration | `ara::shwa` | Safety | Foundation | no | not covered |
 | Update and Configuration Management | `ara::ucm` | Configuration | Platform Service | yes | 13 |
 | Vehicle Update and Configuration Management | `ara::vucm` | Configuration | Vehicle Service | yes | 13 (context only) |
@@ -392,7 +392,7 @@ You write processes that offer and use services, log, store data and report thei
 | 04 EM | Read Chapters 1, 2, 5 and 13 | How your process is started and stopped, and `ExecutionClient` |
 | 10 Log and Trace | Read | Logging from day one |
 | 11 Persistency | Read | Keeping data across power cycles |
-| 06 PHM | Skim | Supervision checkpoints in your code |
+| [06](06_PlatformHealthManagement.md#5-supervised-entities-and-checkpoints-in-practice) PHM | Skim | Supervision checkpoints in your code |
 | 02 Manifests | Skim | What the integrator configures for you |
 | 12a, 14, 15 | Optional | When your application provides diagnostic data, uses crypto or needs access rights |
 
@@ -404,9 +404,9 @@ You configure manifests, deploy software, bring up ECUs and debug them.
 | --- | --- | --- |
 | 00, 01 | Read | Orientation and architecture |
 | 02 Manifests | Read | The basis of all configuration |
-| 04 EM, 05 SM | Read | Startup, Function Groups and state transitions |
+| 04 EM, [05](05_StateManagement.md#7-controller-and-agents) SM | Read | Startup, Function Groups and state transitions |
 | 07, 08 | Read | Service deployment and network bindings |
-| 06 PHM | Read | Supervision and recovery |
+| [06](06_PlatformHealthManagement.md#14-configuration-reference-what-to-configure) PHM | Read | Supervision and recovery |
 | 13 UCM | Read | Installation and updates |
 | 16 IDSM and Firewall | Read | Firewall rules and security events in the Machine Manifest |
 | 10, 11, 12a, 12b, 14, 15 | Skim | The configuration chapters of each |
@@ -420,7 +420,7 @@ You build or extend a functional cluster, or write the project-specific State Ma
 | --- | --- | --- |
 | 00, 01 | Read | Orientation and architecture |
 | [03](03_CoreAndGeneral.md#12-general-rules-for-all-functional-clusters) `ara::core` | Read | Conventions every cluster API follows |
-| 04 EM, 05 SM, 06 PHM | Read | The lifecycle core that every cluster depends on |
+| 04 EM, [05](05_StateManagement.md) SM, [06](06_PlatformHealthManagement.md) PHM | Read | The lifecycle core that every cluster depends on |
 | The guide of your cluster | Read | Your own area |
 | 02 Manifests | Skim | How your cluster's configuration reaches you |
 | 17 End-to-End | Read | The interactions between clusters |
@@ -435,7 +435,7 @@ You define and test diagnostic services, DTCs and their data.
 | 02 Manifests | Skim | Where the diagnostic configuration lives |
 | 07 `ara::com` | Skim | Diagnostic interfaces of applications use the same concepts |
 | 12a, 12b Diagnostics | Read | Your main area |
-| 05 SM | Skim | ECU reset and how State Management carries it out |
+| [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control) SM | Skim | ECU reset and how State Management carries it out |
 | 13 UCM | Skim | Updates through a diagnostic tester |
 | 10 Log and Trace | Optional | Traces that support diagnostic analysis |
 
@@ -677,7 +677,7 @@ flowchart LR
 
 | Software Cluster | Category | Version | Function Group | Contents | Owner guides |
 | --- | --- | --- | --- | --- | --- |
-| `HpcPlatformCore` | `PLATFORM_CORE` | 1.0.0 | `MachineFG` | The operating system, Execution Management, the processes `StateManager`, `PlatformHealth` and `PowerControl`, the daemons of the other platform clusters, and the platform libraries | [02](02_Manifests.md#104-worked-example-adascluster-and-hpcplatformcore), 13 |
+| `HpcPlatformCore` | `PLATFORM_CORE` | 1.0.0 | `MachineFG` | The operating system, Execution Management, the processes `StateManager`, `SmControl`, `PlatformHealth` and `PowerControl`, the daemons of the other platform clusters, and the platform libraries | [02](02_Manifests.md#104-worked-example-adascluster-and-hpcplatformcore), 13 |
 | `AdasCluster` | `APPLICATION_LAYER` | 1.0.0, later 1.1.0 ([Section 6.11](#611-software-updates)) | `ADAS` | The seven ADAS processes and their configuration | [02](02_Manifests.md#104-worked-example-adascluster-and-hpcplatformcore), 13 |
 
 Each Software Cluster carries the ID of its vendor and is signed by that vendor: `HpcPlatformCore` has the vendor ID `0x1111` and is signed with `PlatformVendorCert`; `AdasCluster` has the vendor ID `0x1234` and is signed with `AdasSupplierCert` ([Section 6.12](#612-security)). Guide 02 shows both Software Clusters as ARXML.
@@ -711,7 +711,6 @@ stateDiagram-v2
     [*] --> Off
     Off --> Normal: machine in Driving
     Normal --> Degraded: supervision failure, Fusion crash or diagnostic request
-    Degraded --> Normal: SM policy, for example next drive cycle
     Normal --> Off: shutdown or update
     Degraded --> Off: shutdown or update
     Off --> Verify: update of AdasCluster activated
@@ -722,23 +721,31 @@ stateDiagram-v2
 | --- | --- | --- |
 | `MachineFG`: `Off` → `Startup` | (not SM: EM performs it on its own at boot) | 04 |
 | `MachineFG`: `Startup` → `Driving` | startup is complete and `PowerMode` reports that the vehicle is switched on | 05 |
-| `ADAS`: `Off` → `Normal` | the machine is in `Driving`. SM also requests the partial network `AdasPn`. | 05, 09 |
-| `ADAS`: `Normal` → `Degraded` | PHM reports a supervision failure of `Fusion` or `CameraDriver`, EM reports that `Fusion` crashed (`ExecutionError` 42), or a diagnostic request asks for it | 04, 05, 06, 12a |
-| `ADAS`: `Degraded` → `Normal` | the project policy allows it, for example at the next drive cycle | 05 |
-| `ADAS` → `Off`, then `MachineFG` → `Shutdown` | `PowerMode` reports that the vehicle is switched off | 04, 05 |
-| `MachineFG` → `Restart` | Diagnostic Management requests an ECU reset, or UCM requests a machine reset | 05, 12a, 13 |
-| `ADAS`: `Off` → `Verify` → `Normal` | UCM activates an update of `AdasCluster`: SM switches `ADAS` off, then to `Verify` to check the new software, and finally back to `Normal` (*Platform Design*, Figure 13.10) | 05, 13 |
+| `ADAS`: `Off` → `Normal` | the machine is in `Driving`. SM also requests the partial network `AdasPn`. | [05](05_StateManagement.md#76-worked-example-hpccontroller-and-adasagent), 09 |
+| `ADAS`: `Normal` → `Degraded` | PHM reports a supervision failure of `Fusion` or `CameraDriver`, EM reports that `Fusion` crashed (`ExecutionError` 42), or a diagnostic request asks for it through `SmControl` | 04, [05](05_StateManagement.md#87-worked-example-fusion-fails-and-adas-goes-to-degraded), 06, 12a |
+| `ADAS`: `Degraded` → `Normal` | not during a drive. `ADAS` returns to `Normal` only when it is started again, at the next drive cycle through `Off`; this also restarts a failed `CameraDriver` | [05](05_StateManagement.md#88-worked-example-a-stuck-cameradriver) |
+| `ADAS` → `Off`, then `MachineFG` → `Shutdown` | `PowerMode` reports that the vehicle is switched off | 04, [05](05_StateManagement.md#15-end-to-end-walkthrough-a-drive-cycle-of-the-hpc) |
+| `MachineFG` → `Restart` | Diagnostic Management requests an ECU reset through `SmControl`, or UCM requests a machine reset | [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control), 12a, 13 |
+| `ADAS`: `Off` → `Verify` → `Normal` | UCM activates an update of `AdasCluster`: SM switches `ADAS` off, then to `Verify` to check the new software, and finally back to `Normal` (*Platform Design*, Figure 13.10) | [05](05_StateManagement.md#97-worked-example-updating-adascluster-to-110), 13 |
 | `MachineFG` → `Verify` | UCM activates an update that affects `MachineFG`, that is, the `HpcPlatformCore` Software Cluster | 05, 13 |
 
-Since R22-11, State Management can model this logic with its *StateMachine* concept and a project-specific control application (*Platform Design*, Chapter 7). Guide 05 decides how the `HPC` uses it and may add a process for it.
+**State Management design.** `HPC` uses the *StateMachine approach* of State Management ([guide 05, Section 1.4](05_StateManagement.md#14-two-ways-to-build-state-management)). The process `StateManager` runs two StateMachines; the project-specific application `SmControl` decides which transitions to request ([guide 05, Section 7.6](05_StateManagement.md#76-worked-example-hpccontroller-and-adasagent)). All values are illustrative.
+
+| StateMachine | Role | Controls | StateMachine States (initial in bold) | Transition requests (value) | Error reactions |
+| --- | --- | --- | --- | --- | --- |
+| `HpcController` | Controller | `MachineFG`; starts and stops `AdasAgent` | **`Init`**, `Driving`, `Shutdown`, `Restart`, `PrepareUpdate`, `VerifyUpdate`, `PrepareRollback`, `AfterUpdate`, `ContinueUpdate`, `LeaveSuspend` | `Drive` (1), `PowerOff` (2), `Reset` (3) | `ANY` → `Restart` |
+| `AdasAgent` | Agent | `ADAS` and the partial network `AdasPn` (network handle `AdasPnHandle`) | `Off`, **`Normal`**, `Degraded`, `PrepareUpdate`, `VerifyUpdate`, `PrepareRollback` | `Degrade` (10), from `Normal` only | 42 → `Degraded`; 1 → `Degraded`; `ANY` → `Off` |
+
+The `Off` state of `AdasAgent` keeps `AdasPn` for an afterrun of 2 s before it releases it. `HPC` does not use Suspend-to-RAM; `LeaveSuspend` exists only because R25-11 requires it in every Controller ([guide 05, Section 10.8](05_StateManagement.md#108-what-hpc-does)). [Guide 05, Section 12.12](05_StateManagement.md#1212-the-running-example-complete-configuration) gives the complete configuration.
 
 ### 6.5 Processes
 
-The ten processes come from the [EM guide](04_ExecutionManagement.md#the-running-example). The executables marked with \* are named here for the first time. The role column adds what the other guides need.
+Ten processes come from the [EM guide](04_ExecutionManagement.md#the-running-example); guide 05 added the eleventh, `SmControl`. The executables marked with \* are named here for the first time. The role column adds what the other guides need.
 
 | Process | Executable | Function Group States | ResourceGroup | Role | Owner guides |
 | --- | --- | --- | --- | --- | --- |
-| `StateManager` | `state_manager`\* | `MachineFG`: Startup, Driving, Shutdown, Restart, Verify | `platform_rg` | The State Management daemon with the project-specific logic. Uses `PowerModeService`, provides `AdasStatusService`. | 04, 05 |
+| `StateManager` | `state_manager`\* | `MachineFG`: Startup, Driving, Shutdown, Restart, Verify | `platform_rg` | The State Management daemon. Runs the StateMachines `HpcController` and `AdasAgent` and provides their services, the `UpdateAllowedService` and the `UpdateRequest` service for UCM. | 04, [05](05_StateManagement.md#31-where-state-management-sits-in-the-platform) |
+| `SmControl` | `sm_control`\* | `MachineFG`: Startup, Driving, Verify | `platform_rg` | The SMControlApplication with the project-specific logic: uses `PowerModeService` and `VehicleDynamicsService`, provides `AdasStatusService`, requests StateMachine transitions, decides whether an update is allowed, and implements the ECU reset for Diagnostic Management. | [05](05_StateManagement.md#26-smcontrolapplication), 08, 12a |
 | `PlatformHealth` | `platform_health`\* | same as `StateManager` | `platform_rg` | The Platform Health Management daemon. Supervises `Fusion` and `CameraDriver` and triggers the watchdog. | 04, 06 |
 | `PowerControl` | `power_control`\* | `MachineFG`: Shutdown, Restart | `platform_rg` | Powers off or reboots the machine. | 04, 05 |
 | `Storage` | `storage` | `ADAS`: Normal, Degraded | `adas_rg` | The ADAS data store. Keeps the camera calibration, provides `CalibrationDataService`, and records object lists. | 04, 07, 11 |
@@ -751,9 +758,9 @@ The ten processes come from the [EM guide](04_ExecutionManagement.md#the-running
 
 The Execution Dependencies are unchanged from the [EM guide](04_ExecutionManagement.md#65-dependencies-in-the-running-example): `CalibrationCheck` needs `Storage` *Running*; `LoggerCompanion` needs `LegacyLogger` *Running*; `Fusion` needs `CalibrationCheck` *Terminated* and `LoggerCompanion` *Running*; `FusionLite` needs `LoggerCompanion` *Running*.
 
-**Software components and instance specifiers.** Guide 02 ([Section 5.5](02_Manifests.md#55-worked-example-cameradriver-and-fusion)) models the executables `camera_driver` and `fusion` with one software component each, `CameraDriverSwc` and `FusionSwc`, placed in the root prototype `Root` of the executable. Their ports for `CameraService` are `CameraPPort` (provided) and `CameraRPort` (required). The application code therefore identifies them with the instance specifiers `/camera_driver/Root/CameraPPort` and `/fusion/Root/CameraRPort`. Other executables are modeled in the same way when a guide needs them.
+**Software components and instance specifiers.** Guide 02 ([Section 5.5](02_Manifests.md#55-worked-example-cameradriver-and-fusion)) models the executables `camera_driver` and `fusion` with one software component each, `CameraDriverSwc` and `FusionSwc`, placed in the root prototype `Root` of the executable. Their ports for `CameraService` are `CameraPPort` (provided) and `CameraRPort` (required). The application code therefore identifies them with the instance specifiers `/camera_driver/Root/CameraPPort` and `/fusion/Root/CameraRPort`. For Platform Health Management, `FusionSwc` also has the R-port `FusionCyclePort` and `CameraDriverSwc` the R-port `ImageLoopPort`, typed by the Supervised Entity interfaces `FusionCycle` and `CameraImageLoop` ([Section 6.13](#613-safety)); their instance specifiers are `/fusion/Root/FusionCyclePort` and `/camera_driver/Root/ImageLoopPort`. Other executables are modeled in the same way when a guide needs them.
 
-**State Management ports and process states.** The executable `state_manager` has, in its root prototype `Root`, the R-ports `MachineFgPort` and `AdasFgPort`, typed by the State Client interfaces `MachineFgStateClient` and `AdasStateClient`, so that the code uses the instance specifiers `/state_manager/Root/MachineFgPort` and `/state_manager/Root/AdasFgPort`. The Function Group Port Mappings `StateManagerToMachineFG` and `StateManagerToADAS` connect the two ports of the process `StateManager` to `MachineFG` and `ADAS` ([EM guide, Section 13.10](04_ExecutionManagement.md#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)). The processes that others depend on (`Storage`, `CalibrationCheck`, `LegacyLogger`, `LoggerCompanion`) have a process state machine typed by the group `ProcessStates`, with the states `Running` and `Terminated` ([EM guide, Section 13.11](04_ExecutionManagement.md#1311-the-running-example-complete-configuration)).
+**State Management ports and process states.** The executable `state_manager` has, in its root prototype `Root`, the R-ports `MachineFgPort` and `AdasFgPort`, typed by the State Client interfaces `MachineFgStateClient` and `AdasStateClient`, so that the code uses the instance specifiers `/state_manager/Root/MachineFgPort` and `/state_manager/Root/AdasFgPort`. The Function Group Port Mappings `StateManagerToMachineFG` and `StateManagerToADAS` connect the two ports of the process `StateManager` to `MachineFG` and `ADAS` ([EM guide, Section 13.10](04_ExecutionManagement.md#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)). The root prototype is typed by the component `StateManagerSwc`. For Platform Health Management, it also has the P-port `PhmRecoveryPort`, typed by the recovery notification interface `SupervisionRecovery`, and the R-port `HeartbeatPort`, typed by the Supervised Entity interface `StateManagerHeartbeat` ([Section 6.13](#613-safety)); the instance specifiers are `/state_manager/Root/PhmRecoveryPort` and `/state_manager/Root/HeartbeatPort`. For its StateMachines, `StateManagerSwc` has P-ports for the services of each StateMachine (`ControllerServicePort`, `AdasServicePort`, `ControllerStatePort`, `AdasStatePort`), for `UpdateAllowedService` (`UpdateAllowedPort`) and for `UpdateRequest` (`UpdateRequestPort`), and R-ports as inputs of its tables (`ControllerTriggerPort`, `AdasTriggerPort`, `ControllerErrorPort`, `AdasErrorPort`). `SmControl` is modeled by the component `SmControlSwc` in the root prototype `Root` of `sm_control`, with the ports `PowerModeRPort`, `VehicleDynamicsRPort`, `AdasStatusPPort`, `ControllerRequestRPort`, `AdasRequestRPort`, `AdasStateRPort`, `UpdateAllowedRPort` and `EcuResetPort` ([guide 05, Section 12.9](05_StateManagement.md#129-port-interfaces-and-ports)). The processes that others depend on (`Storage`, `CalibrationCheck`, `LegacyLogger`, `LoggerCompanion`) have a process state machine typed by the group `ProcessStates`, with the states `Running` and `Terminated` ([EM guide, Section 13.11](04_ExecutionManagement.md#1311-the-running-example-complete-configuration)).
 
 > **Pitfall:** Service use is not an Execution Dependency. `Fusion` uses `CameraService`, but it has no Execution Dependency on `CameraDriver`. It waits for the service through Service Discovery, as the EM guide recommends ([EM guide, Section 6.6](04_ExecutionManagement.md#66-prefer-service-discovery-for-applications)).
 
@@ -764,9 +771,9 @@ The Execution Dependencies are unchanged from the [EM guide](04_ExecutionManagem
 | `CameraService` | `CameraDriver` | `Fusion` (on `HPC`), `Cockpit` (remote) | event `Image`, method `SetExposureMode`, field `CameraStatus` | [02](02_Manifests.md#66-worked-example-cameraservice-as-arxml), 07, 08 |
 | `ObjectListService` | `Fusion`; `FusionLite` with reduced content | `Storage` (on `HPC`), `Cockpit` (remote) | event `ObjectList` | 07, 08 |
 | `CalibrationDataService` | `Storage` | read: `CalibrationCheck`, `Fusion`, `FusionLite`; write: `CameraDriver` | methods `GetCalibration`, `SetCalibration` | 07, 11, 15 |
-| `VehicleDynamicsService` | Communication Management, by Signal-to-Service translation | `Fusion`, `FusionLite` | events `VehicleSpeed`, `SteeringAngle`, `YawRate` | 08 |
-| `PowerModeService` | Communication Management, by Signal-to-Service translation | `StateManager` | field `PowerMode` | 05, 08 |
-| `AdasStatusService` | `StateManager` | `InstrumentCluster` (through Signal-to-Service translation), `Cockpit` | field `AdasStatus` with the values `Off`, `Active`, `Degraded`, `Unavailable` | 05, 08 |
+| `VehicleDynamicsService` | Communication Management, by Signal-to-Service translation | `Fusion`, `FusionLite`, `SmControl` | events `VehicleSpeed`, `SteeringAngle`, `YawRate` | 08 |
+| `PowerModeService` | Communication Management, by Signal-to-Service translation | `SmControl` | field `PowerMode` with the values `Off` and `On` | [05](05_StateManagement.md#55-worked-example-smcontrol-brings-hpc-from-startup-to-driving), 08 |
+| `AdasStatusService` | `SmControl` | `InstrumentCluster` (through Signal-to-Service translation), `Cockpit` | field `AdasStatus` with the values `Off`, `Active`, `Degraded`, `Unavailable` | [05](05_StateManagement.md#137-example-the-main-loop-of-smcontrol), 08 |
 
 **The `CameraService` contract** (detailed in [guide 02, Section 6.6](02_Manifests.md#66-worked-example-cameraservice-as-arxml)). Namespace `hpc::camera`, version 1.0. The event `Image` carries a `CameraImage`: `timestamp` (`uint64_t`), `width` and `height` (`uint16_t`) and `pixels` (a vector of `uint8_t`). The field `CameraStatus` has the type `CameraState` with the values `Ok`, `Blocked` and `NotAvailable`; it has a getter and a notifier but no setter, and its initial value is `NotAvailable`. The method `SetExposureMode(mode)` takes an `ExposureMode` with the values `Auto`, `Day` and `Night`, and can fail with the application error `ExposureModeNotSupported` (code 1 of the error domain `CameraErrors`). `Fusion` calls `SetExposureMode(Night)` when the camera image gets dark; if `CameraDriver` answers `ExposureModeNotSupported`, `Fusion` keeps the mode `Auto` ([guide 03, Section 9.7](03_CoreAndGeneral.md#97-worked-example-fusion-requests-the-night-exposure-mode)).
 
@@ -775,16 +782,16 @@ The Execution Dependencies are unchanged from the [EM guide](04_ExecutionManagem
 | Error domain | Identifier | Namespace | Errors (code) | How it is defined | Owner guides |
 | --- | --- | --- | --- | --- | --- |
 | `CameraErrors` | `0x1001` (4097) | `hpc::camera` | `ExposureModeNotSupported` (1) | Modeled; referenced by `SetExposureMode`, so its C++ code is generated | [02](02_Manifests.md#63-application-errors), [03](03_CoreAndGeneral.md#78-generated-error-domains), 07 |
-| `AdasExecutionErrors` | `0x1002` (4098) | none | `FusionFailed` (42) | Modeled; referenced by the `processExecutionError` of `Fusion` | [02](02_Manifests.md#63-application-errors), 04 |
+| `AdasExecutionErrors` | `0x1002` (4098) | none | `FusionFailed` (42), `AdasStateTimeout` (60), `AdasTransitionRequestFailed` (61) | Modeled; 42 is the `processExecutionError` of `Fusion`; 60 and 61 are error codes of the State Management configuration | [02](02_Manifests.md#63-application-errors), 04, [05](05_StateManagement.md#81-where-errors-come-from) |
 | `FusionErrors` | `0x1003` (4099) | `hpc::fusion` | `kInputTimeout` (1), `kCalibrationImplausible` (2) | Written by hand inside `Fusion`, not modeled; used only inside the process | [03](03_CoreAndGeneral.md#77-defining-a-new-error-domain) |
 
 Three design decisions are worth knowing:
 
 - **Shared data goes through a service.** Persistent data is private to one process (*Platform Design*, Section 10.1). `CalibrationCheck` and `Fusion` therefore cannot read data that another process stored. `Storage` owns the calibration and shares it through `CalibrationDataService`.
 - **Two providers, never at the same time.** `Fusion` and `FusionLite` both provide `ObjectListService`, but they run in different `ADAS` states. Guides 07 and 08 show how this is deployed.
-- **The ADAS status comes from State Management**, because SM knows the state of `ADAS`.
+- **The ADAS status comes from `SmControl`**, which follows the `CurrentState` of the StateMachine `AdasAgent` in State Management.
 
-Standardized platform services, such as the `PackageManagement` service of UCM or the update interface of State Management, are used as the specifications define them. The running example does not redefine them.
+Standardized platform services, such as the `PackageManagement` service of UCM or the services of State Management (`StateMachineService` and `StateMachineNotification` for each StateMachine, `UpdateAllowedService` and `UpdateRequest`), are used as the specifications define them. The running example does not redefine them.
 
 The following diagram shows who provides and who uses which service.
 
@@ -806,8 +813,9 @@ flowchart LR
     S2S --> PM(["PowerModeService"])
     VD --> FU
     VD --> FL
-    PM --> SMG["StateManager"]
-    SMG --> AS(["AdasStatusService"])
+    PM --> SMC["SmControl"]
+    VD --> SMC
+    SMC --> AS(["AdasStatusService"])
     AS --> S2S
     AS --> CK
 ```
@@ -840,7 +848,7 @@ flowchart LR
     CH["ChassisECU"] -->|"CAN: ChassisDynamics"| GW["CentralGateway"]
     GW -->|"PDUs over Ethernet"| CM["HPC: Communication Management<br/>(Signal-to-Service translation)"]
     CM -->|"VehicleDynamicsService"| FU["Fusion, FusionLite"]
-    SMG["StateManager"] -->|"AdasStatusService"| CM
+    SMC["SmControl"] -->|"AdasStatusService"| CM
     CM -->|"PDUs over Ethernet"| GW
     GW -->|"CAN: AdasHmi"| IC["InstrumentCluster"]
 ```
@@ -868,7 +876,7 @@ The Adaptive Platform communicates over Ethernet at the data link layer (*Platfo
 | Diagnostic address | DoIP logical address `0x1010`, one for the whole machine: both Software Clusters share one diagnostic configuration | Diagnostic Management | 12a |
 | DID `0x0101` `FusionSoftwareVersion` | Read with the UDS service ReadDataByIdentifier | `Fusion` | 12a |
 | Routine `0x0201` `CalibrateCamera` | Started with the UDS service RoutineControl. Measures the camera position and stores it with `SetCalibration`. | `CameraDriver` | 12a |
-| ECU reset | The UDS service ECUReset (`0x11`). State Management carries out the reset with `MachineFG.Restart`; guide 12a shows how the request reaches it. | Diagnostic Management, `StateManager` | 05, 12a |
+| ECU reset | The UDS service ECUReset (`0x11`). Diagnostic Management calls `ara::diag::EcuResetRequest`, which `SmControl` implements; `SmControl` requests `Reset` from `HpcController`, whose `Restart` state requests `MachineFG.Restart`. Guide 12a shows the Diagnostic Management side. | Diagnostic Management, `SmControl`, `StateManager` | [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control), 12a |
 | Diagnostic event `CameraBlocked` | Reported by the diagnostic monitor in `CameraDriver` when the camera image stays dark or frozen | `CameraDriver` | 12b |
 | DTC `0x9A1011` | Stored when `CameraBlocked` fails; a snapshot record holds `VehicleSpeed` | Diagnostic Management | 12b |
 
@@ -882,7 +890,7 @@ The Adaptive Platform communicates over Ethernet at the data link layer (*Platfo
 | Update | A Software Package with `AdasCluster` 1.1.0. It contains `fusion` 1.1.0 and the new version of `FusionParams`. | 11, 13 |
 | Package authenticity | The package is signed; UCM verifies it with `PackageVerificationKey` | 13, 14 |
 | UCM client | V-UCM on `TelematicsUnit`, which receives the package from the `Backend` through the OTA Client | 13 |
-| Activation | Through the `Verify` state of `ADAS`, the Function Group of `AdasCluster`, coordinated by UCM and State Management | 05, 13 |
+| Activation | Through the `Verify` state of `ADAS`, the Function Group of `AdasCluster`, coordinated by UCM and State Management. `SmControl` allows an update session only while the vehicle stands still. | [05](05_StateManagement.md#97-worked-example-updating-adascluster-to-110), 13 |
 | Rollback | If the verification fails, UCM rolls back to `AdasCluster` 1.0.0 | 13 |
 
 The update follows the three phases of UCM: preparation (transfer and processing), activation, and cleanup (*Platform Design*, Section 13.4). Guide 13 tells the whole story.
@@ -908,6 +916,7 @@ The trust chain of the boot process starts at a Trust Anchor in protected memory
 | `Fusion` | Use `CameraService`. No other process on `HPC` may use it. | IAM | 15 |
 | `CameraDriver` | Call `SetCalibration`. Other consumers may only call `GetCalibration`. | IAM | 15 |
 | `StateManager` | Use `StateClient` for `MachineFG` and `ADAS` through the Function Group Port Mappings `StateManagerToMachineFG` and `StateManagerToADAS`. No other process may. | EM | [04](04_ExecutionManagement.md#126-function-group-access-control) |
+| `SmControl` | Request transitions of `HpcController` and `AdasAgent` and set `UpdateAllowed`. No other process may. | IAM | [05](05_StateManagement.md#35-who-may-talk-to-state-management), 15 |
 
 *Denial scenario (guide 15):* `FusionLite` is misconfigured and tries to subscribe to `CameraService`. IAM denies the access and a security event is reported.
 
@@ -923,19 +932,24 @@ The trust chain of the boot process starts at a Trust Anchor in protected memory
 
 ### 6.13 Safety
 
-| Supervised process | Supervision | Checkpoints (illustrative) | Owner guides |
-| --- | --- | --- | --- |
-| `Fusion` | Alive, deadline and logical supervision of the 50 ms fusion cycle | `CycleStart`, `InputsRead`, `ObjectsPublished`, `CycleEnd` | 06 |
-| `CameraDriver` | Alive supervision of the image loop (30 images per second) | `ImageCaptured` | 06 |
+Platform Health Management supervises three processes. Each one reports the checkpoints of one Supervised Entity, and its supervisions form one Global Supervision. All values are illustrative.
 
-When a supervision fails, Platform Health Management informs State Management, which switches `ADAS` to `Degraded`. When `Fusion` terminates, EM informs PHM, because `Fusion` is supervised ([EM guide, Section 5.9](04_ExecutionManagement.md#59-synchronization-with-platform-health-management)). `PlatformHealth` also serves the hardware watchdog: if Execution Management or State Management fails, PHM lets the watchdog reset the machine (*Platform Design*, Section 17.3). Which communication is protected end-to-end (E2E) is decided in guide 08.
+| Supervised process | Supervised Entity: interface, namespace, checkpoints (ID) | Supervisions | Global Supervision, active in | Owner guides |
+| --- | --- | --- | --- | --- |
+| `Fusion` | `FusionCycle`, `hpc::fusion`: `CycleStart` (1), `InputsRead` (2), `ObjectsPublished` (3), `CycleEnd` (4) | Alive supervision of `CycleStart`: reference cycle 200 ms, 4 expected indications, margins 1 and 1, tolerance 1 failed cycle. Deadline `ComputeDeadline`: `InputsRead` to `ObjectsPublished` within 25 ms. Deadline `CycleDeadline`: `CycleStart` to `CycleEnd` within 45 ms. Logical supervision `CycleOrder`: `CycleStart`, `InputsRead`, `ObjectsPublished`, `CycleEnd`, or `CycleStart` directly to `CycleEnd` when a cycle is skipped. | `FusionSupervision`, in `ADAS.Normal` | [06](06_PlatformHealthManagement.md#1415-the-running-example-complete-configuration) |
+| `CameraDriver` | `CameraImageLoop`, `hpc::camera`: `ImageCaptured` (1) | Alive supervision of the image loop (30 images per second): reference cycle 500 ms, 15 expected indications, margins 2 and 2, tolerance 2 failed cycles | `CameraDriverSupervision`, in `ADAS.Normal` and `ADAS.Degraded` | [06](06_PlatformHealthManagement.md#1415-the-running-example-complete-configuration) |
+| `StateManager` | `StateManagerHeartbeat`, `hpc::sm`: `MainLoop` (1) | Alive supervision of the main loop (every 100 ms): reference cycle 1 s, 10 expected indications, margins 2 and 2, tolerance 1 failed cycle; `expiredSupervisionTolerance` 200 ms | `StateManagerSupervision`, in every `MachineFG` state except `Off` | [06](06_PlatformHealthManagement.md#1415-the-running-example-complete-configuration) |
+
+The configuration is split into two PHM contributions. `AdasPhm` belongs to `AdasCluster`. It holds the supervisions of `Fusion` and `CameraDriver`, and it connects both Global Supervisions to the recovery notification `AdasRecovery` (timeout 6 s). The mapping `AdasRecoveryToStateManager` delivers that notification to the port `PhmRecoveryPort` of `StateManager`. `PlatformPhm` belongs to `HpcPlatformCore` and holds the supervision of `StateManager`. It has no recovery notification, because a failure of State Management ends in a watchdog reset. The mappings `AdasPhmToHpc` and `PlatformPhmToHpc` enable both contributions on `HPC`. In a real project, the platform vendor usually delivers the supervision of State Management.
+
+When a supervision of `Fusion` or `CameraDriver` fails, Platform Health Management informs State Management, which switches `ADAS` to `Degraded` through the error reactions of `AdasAgent`. PHM passes the `processExecutionError` of the failed process: 42 for `Fusion`, and the default value 1 for `CameraDriver`, which has none. When `Fusion` terminates, EM informs PHM, because `Fusion` is supervised ([EM guide, Section 5.9](04_ExecutionManagement.md#59-synchronization-with-platform-health-management)). `PlatformHealth` also serves the hardware watchdog: if Execution Management or State Management fails, PHM lets the watchdog reset the machine (*Platform Design*, Section 17.3). Which communication is protected end-to-end (E2E) is decided in guide 08.
 
 ### 6.14 Time, Network Management and Logging
 
 | Area | Element (illustrative) | Owner guides |
 | --- | --- | --- |
 | Time synchronization | Time base `VehicleTime`, synchronized with IEEE 802.1AS. `CentralGateway` is the time master; `HPC` follows it. `CameraDriver` time-stamps every image with `VehicleTime`, so that `Fusion` can align images and radar detections. | 09 |
-| Network Management | Partial network `AdasPn`, with `HPC`, `FrontRadar` and `Cockpit`. State Management requests it when `ADAS` leaves `Off` and releases it when `ADAS` returns to `Off`. | 05, 09 |
+| Network Management | Partial network `AdasPn`, with `HPC`, `FrontRadar` and `Cockpit`, controlled through the network handle `AdasPnHandle`. State Management requests it when `ADAS` leaves `Off` and releases it 2 s after `ADAS` has returned to `Off` (afterrun). | [05](05_StateManagement.md#63-network-handle-items-and-afterrun), 09 |
 | Log and Trace | ECU ID `HPC1`. `Fusion`: application ID `FUSN`, contexts `MAIN` and `TRCK`. `CameraDriver`: application ID `CAMD`, contexts `MAIN` and `IMGS`. | 10 |
 
 ### 6.15 Scenario Index
@@ -948,8 +962,8 @@ Each guide tells one or more stories on the running example. Use this table to f
 | [02](02_Manifests.md#1216-the-running-example-complete-configuration) | The manifests of `CameraDriver`, `Fusion` and `CameraService` as real ARXML |
 | [03](03_CoreAndGeneral.md#16-end-to-end-walkthrough-a-day-of-error-handling-in-fusion) | `Fusion` handles a failed service call with `Result` and `Future`; an application error, a late input and a configuration error that ends in a Violation |
 | 04 | Startup, the `ADAS` transitions, the `Fusion` crash and shutdown ([EM guide, Chapter 16](04_ExecutionManagement.md#16-end-to-end-walkthrough-a-day-in-the-life-of-an-ecu)) |
-| 05 | `MachineFG` from `Startup` to `Driving`; `ADAS` from `Normal` to `Degraded` after a PHM report or a diagnostic request; ECU reset |
-| 06 | Supervision of `Fusion` and `CameraDriver`; a failed supervision leads to `ADAS.Degraded` |
+| [05](05_StateManagement.md#15-end-to-end-walkthrough-a-drive-cycle-of-the-hpc) | `SmControl` brings `MachineFG` from `Startup` to `Driving`; `ADAS` from `Normal` to `Degraded` after a PHM report; a stuck `CameraDriver`; an ECU reset; the State Management side of the `AdasCluster` update |
+| [06](06_PlatformHealthManagement.md#17-end-to-end-walkthrough-a-drive-under-supervision) | Supervision of `Fusion`, `CameraDriver` and `StateManager`; a failed supervision of `Fusion` leads to `ADAS.Degraded`, a hang of `StateManager` to a watchdog reset |
 | 07 | Proxy and skeleton code for `CameraService`, `ObjectListService` and `CalibrationDataService` |
 | 08 | `CameraService` over SOME/IP and `ObjectListService` over DDS to `Cockpit`; Signal-to-Service translation of the CAN signals |
 | 09 | `AdasPn` woken by State Management; images time-stamped with `VehicleTime`; the radar raw data stream |
@@ -967,7 +981,7 @@ Each guide tells one or more stories on the running example. Use this table to f
 >
 > - `HPC` is the only detailed node. The other nodes are black boxes that give the example realistic network traffic.
 > - `HPC` has two Software Clusters: `HpcPlatformCore` with `MachineFG`, and `AdasCluster` with `ADAS`.
-> - The ten processes of the EM guide stay unchanged. Their roles now include services, storages, diagnostic functions and supervision.
+> - The ten processes of the EM guide stay unchanged; guide 05 adds `SmControl`. Their roles now include services, storages, diagnostic functions and supervision.
 > - Every element names its owner guide. Illustrative values are invented for teaching.
 > - New elements are always added to this chapter first.
 
@@ -1021,6 +1035,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | DTLS | Datagram Transport Layer Security |
 | E2E | End-to-End (protection of data exchange) |
 | ECU | Electronic Control Unit |
+| Elementary Supervision Status | The status of one alive, deadline or logical supervision: `kOK`, `kFAILED`, `kEXPIRED` or `kDEACTIVATED`. | [06, 9.1](06_PlatformHealthManagement.md#91-elementary-supervision-status) |
 | EcuC | ECU Configuration (Classic Platform) |
 | EM | Execution Management |
 | EXP | Explanation (AUTOSAR document type) |
@@ -1101,12 +1116,17 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | AbortHandler | A function `void() noexcept` that `ara::core::Abort` calls, in reverse order of installation, before it ends the process | [03, 10.4](03_CoreAndGeneral.md#104-abort-handlers) |
 | Access Control Decision | The yes-or-no answer whether a requested operation is permitted. It is based on the identity of the caller and the Access Control Policy. | 15 |
 | Access Control Policy | A rule, bound to a target such as a service interface, that states which identity is needed to access it. | 15 |
+| ActionList | The ordered list of ActionListItems that a StateMachine executes when it enters a StateMachine State (meta-class `StateManagementActionList`). | [05, 2.3](05_StateManagement.md#23-actionlist-and-actionlistitem) |
+| ActionListItem | One action of an ActionList, for example a Function Group State request, SYNC, Sleep or the start of an Agent. | [05, 2.3](05_StateManagement.md#23-actionlist-and-actionlistitem) |
 | Activation (update) | The critical phase of a software update in which the new software is switched on and can still be rolled back. | 13 |
+| Active update session | The period from the accepted `RequestUpdateSession` to the end of `StopUpdateSession`, during which State Management supports UCM and keeps the machine available. | [05, 2.7](05_StateManagement.md#27-update-session-terms) |
 | Adaptive Application | Software that delivers a function. It consists of one or more Executables. It uses only ARA and the POSIX profile PSE51, so that it can be deployed on any Adaptive Platform. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
 | Adaptive Platform | AUTOSAR's software platform for high-performance ECUs with service-oriented communication and updatable software. The term means both the standard and an implementation of it. | [00, 1.1](#11-the-adaptive-platform-in-one-page), [01, 1.1](01_PlatformOverview.md#11-what-is-the-adaptive-platform) |
 | Adaptive Platform Foundation | The part of the platform that provides the fundamental functions, such as Execution Management, Communication Management and Persistency, as library-based APIs. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 3.3](01_PlatformOverview.md#33-four-groups-of-functional-clusters) |
 | Adaptive Platform Services | Standard platform services, such as UCM and State Management, that are provided as services over Communication Management. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 3.3](01_PlatformOverview.md#33-four-groups-of-functional-clusters) |
-| Alive Supervision | A PHM check that a supervised entity reports its checkpoint neither too often nor too rarely. | 06 |
+| Agent (State Management) | A StateMachine that the Controller starts and stops; it controls the Function Groups of one Software Cluster. | [05, 2.5](05_StateManagement.md#25-controller-and-agent) |
+| Alive Indication | One report of a checkpoint that is used for alive supervision. | [06, 6.2](06_PlatformHealthManagement.md#62-the-algorithm-alive-counter-reference-cycle-and-margins) |
+| Alive Supervision | A PHM supervision that counts the reports of a checkpoint in each reference cycle and checks them against an expected number with margins. | [06, 6](06_PlatformHealthManagement.md#6-alive-supervision) |
 | APMC | The M1-based target-configuration model with a definition side and a value side that replaces manifest content step by step. | [02, 11.9](02_Manifests.md#119-looking-ahead-apmc) |
 | Application Design | The design-related part of the model: data types, service interfaces, persistency interfaces and other interfaces that an application uses, independent of any deployment. | [02, 2.3](02_Manifests.md#23-the-kinds-of-manifest) |
 | ARA | The AUTOSAR Runtime for Adaptive Applications: the standard C++ interfaces that the functional clusters provide to applications. | [00, 1.1](#11-the-adaptive-platform-in-one-page), [01, 3.2](01_PlatformOverview.md#32-ara-the-autosar-runtime-for-adaptive-applications) |
@@ -1121,7 +1141,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Automotive API Gateway | The functional cluster that gives clients access to selected vehicle data through VISS and VSS. Not covered by the series. | [00, 2.4](#24-topics-outside-the-series) |
 | Basic Software (BSW) | In the Classic Platform, the infrastructure software of an ECU below the RTE: services, ECU abstraction, microcontroller abstraction and complex drivers. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
 | Certificate | An X.509 document that binds a public key to an identity and is signed by a certificate authority. | 14 |
-| Checkpoint | A point in the control flow of a process that the process reports to PHM, so that PHM can supervise its timing and order. | 06 |
+| Checkpoint | A point in the control flow of a Supervised Entity where the activity is reported to PHM, so that PHM can supervise its timing and order. | [06, 2.1](06_PlatformHealthManagement.md#21-supervised-entity-checkpoint-and-supervised-entity-instance) |
 | Class table | The table of the TPS that lists the attributes of a meta-class with type, multiplicity and kind. | [02, 3.8](02_Manifests.md#38-reading-a-class-table-of-the-tps) |
 | Classic Platform | AUTOSAR's software platform for deeply embedded ECUs with high demands on predictability, safety and responsiveness. | [01, 2.1](01_PlatformOverview.md#21-the-problem-the-classic-platform-solves) |
 | Client | A software entity that uses the services of a server. | 07 |
@@ -1132,12 +1152,13 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Constraint | A numbered rule on the meta-model, cited as `[constr_nnnn]`. It must hold from its imposition time on; a model that violates it at that point is invalid. | [00, 5.1](#51-requirement-and-constraint-ids), [02, 2.5](02_Manifests.md#25-constraints-and-imposition-times) |
 | Context ID | The four-character Log and Trace identifier of a cluster's messages, for example `#COR` | [03, 12.5](03_CoreAndGeneral.md#125-logging-and-tracing-conventions) |
 | Continuation | A callable registered with `Future::then` that runs when the result is ready | [03, 9.5](03_CoreAndGeneral.md#95-continuations-with-then) |
+| Controller (State Management) | The one StateMachine that starts with State Management, controls `MachineFG` and starts and stops the Agents. | [05, 2.5](05_StateManagement.md#25-controller-and-agent) |
 | Corruption | The corruption of a system resource, such as a stack overflow or a bit flip; non-recoverable | [03, 6.4](03_CoreAndGeneral.md#64-corruptions-and-failed-default-allocations) |
 | CppImplementationDataType | A data type with its C++ binding; its category selects the C++ form. | [02, 6.4](02_Manifests.md#64-data-types) |
 | CurrentState | The state a Function Group is in when a transition starts. | [04, 8.1](04_ExecutionManagement.md#81-vocabulary) |
 | Daemon-based | A functional cluster that is intended to be implemented with its own daemon process. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
 | Data Identifier (DID) | A UDS identifier of a data record that a tester can read or write, such as a software version. | 12a |
-| Deadline Supervision | A PHM check that the time between two checkpoints stays within configured minimum and maximum limits. | 06 |
+| Deadline Supervision | A PHM supervision that checks that the time from a source to a target checkpoint lies between a minimum and a maximum. | [06, 7](06_PlatformHealthManagement.md#7-deadline-supervision) |
 | Design model | Model content that describes the system across compute nodes and is exchanged between roles, often as a contract. | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration) |
 | Determinism | The property that the same inputs always give the same outputs, within a known, bounded time, every time. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
 | Diagnostic Address | The address under which a diagnostic server is reached. A machine can have one for all Software Clusters or one per Software Cluster. | 12a |
@@ -1150,6 +1171,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Error code value | The integer part of an `ErrorCode`, from the enumeration of its domain | [03, 7.1](03_CoreAndGeneral.md#71-errorcode-value-domain-and-support-data) |
 | Error domain | The context of a set of error codes: identifier, name, messages, exception type | [03, 7.3](03_CoreAndGeneral.md#73-errordomain-identity-name-and-message) |
 | Error domain identifier | The unique 64-bit number that identifies an error domain | [03, 7.4](03_CoreAndGeneral.md#74-error-domain-identifiers) |
+| ErrorRecoveryTable | The rules of a StateMachine that map an error code to the StateMachine State to enter; it must contain an `ANY` entry. | [05, 2.4](05_StateManagement.md#24-transitionrequesttable-and-errorrecoverytable) |
 | Event (service element) | A message that a service provider sends to all subscribed consumers. | 07 |
 | Event Memory | The part of Diagnostic Management that stores DTCs and their data. | 12b |
 | Executable | A program file with exactly one `main()` function. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process), [02, 5.3](02_Manifests.md#53-the-executable-and-its-root-prototype) |
@@ -1174,13 +1196,18 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Function Group State | One mode of a Function Group, which defines the set of processes that run. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
 | FunctionGroupPortMapping | The manifest element that allows one State Management process to control one Function Group. | [04, 12.6](04_ExecutionManagement.md#126-function-group-access-control) |
 | Functional Cluster | A logical group of platform functionality, such as Execution Management, with its own specification and API. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 5](01_PlatformOverview.md#5-the-functional-clusters-of-r25-11) |
+| Global Supervision | A group of supervisions of processes of one Function Group, with one aggregated status. | [06, 9.4](06_PlatformHealthManagement.md#94-grouping-supervisions-into-global-supervisions) |
+| Global Supervision Status | The worst of the Elementary Supervision Statuses of a Global Supervision; additionally `kSTOPPED`. | [06, 9.2](06_PlatformHealthManagement.md#92-global-supervision-status) |
 | Graceful Degradation | Continuing to operate with reduced functionality when errors occur, instead of failing completely. In the running example, `ADAS.Degraded`. | 05, 06 |
+| Health Monitoring | Supervision of the software behavior for correct timing and sequence; the Foundation concept shared by the Classic and the Adaptive Platform. | [06, 2.6](06_PlatformHealthManagement.md#26-health-monitoring-and-phm-who-specifies-what) |
 | Hypervisor | Low-level software that runs several virtual machines on one physical machine. | [01, 4.3](01_PlatformOverview.md#43-the-machine) |
 | Identity and Access Management | The framework that controls which Adaptive Applications may access which service interfaces and platform interfaces. | [00, 2.3](#23-functional-clusters-and-their-guides), 15 |
 | Identity Information | The properties of an application on which access control decisions are based. | 15 |
+| ImpactedByUpdate | The marking of a StateMachine whose Function Groups are being updated; it blocks transition requests and recovery. | [05, 2.7](05_StateManagement.md#27-update-session-terms) |
 | Implementation-defined behavior | Behavior chosen and documented by the platform implementation; vendor-specific behavior is the same | [03, 2.4](03_CoreAndGeneral.md#24-undefined-implementation-defined-and-vendor-specific-behavior) |
 | Imposition time | The point in the workflow at which a constraint must hold, for example `IT_BefAraApiGen` or `IT_Mani`. | [02, 2.5](02_Manifests.md#25-constraints-and-imposition-times) |
 | Initial Process | A process with management rights, for example to determine the exit status, over all processes of the Adaptive Platform. The OS shall allow starting EM as the Initial Process. | [01, 7.4](01_PlatformOverview.md#74-processes-threads-and-isolation) |
+| Initial State (StateMachine) | The StateMachine State that a StateMachine enters when it is started without a parameter (`ModeDeclarationGroup.initialMode`). | [05, 2.2](05_StateManagement.md#22-statemachine-statemachine-state-and-initial-state) |
 | Instance reference | A reference that navigates from a base through context elements to a target in an instance tree. Written as `-IREF`. | [02, 2.2](02_Manifests.md#22-types-prototypes-and-instance-references), [02, 3.5](02_Manifests.md#35-instance-references--iref) |
 | InstanceSpecifier | A path in the model that identifies a configured element, such as a port, from code. Example: `/fusion/Root/CameraRPort`. | [02, 9.4](02_Manifests.md#94-from-port-to-instancespecifier), [03, 11.11](03_CoreAndGeneral.md#1111-instancespecifier) |
 | Integrity | The property that data has not been changed or destroyed in an unauthorized way. | 14 |
@@ -1192,7 +1219,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Language Binding | How a service is presented to the programmer, for example as generated C++ proxy and skeleton classes. | 07 |
 | Library-based | A functional cluster whose interface library is linked into the application and communicates with the cluster directly. | [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
 | Log and Trace | The functional cluster that lets applications and clusters send log messages to the network, a console or a file. | 10 |
-| Logical Supervision | A PHM check that checkpoints are reported in a designed order. | 06 |
+| Logical Supervision | A PHM supervision that checks the order of checkpoints against a graph of allowed transitions. | [06, 8](06_PlatformHealthManagement.md#8-logical-supervision) |
 | Machine | The environment one Adaptive Platform instance runs on: an ECU, a virtual machine or a container. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process), [02, 7.3](02_Manifests.md#73-the-machine) |
 | Machine Design | The design-time placeholder of an Adaptive Machine in the system, the counterpart of the Classic `EcuInstance`. | [02, 7.2](02_Manifests.md#72-machine-design) |
 | Machine Manifest | The machine-wide configuration. | [04, 4.1](04_ExecutionManagement.md#41-where-the-configuration-lives), [02, 7](02_Manifests.md#7-system-design-machine-design-and-the-machine-manifest) |
@@ -1206,6 +1233,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Modelled Process | The manifest description of one way to run an Executable (the meta-class `Process`). | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
 | monitorMode | Trusted-platform mode in which failed checks are logged, but software is still launched. | [04, 12.3](04_ExecutionManagement.md#123-launch-behavior-modes) |
 | Named constructor | A static `noexcept` function, usually `Create`, that constructs an object and returns a `Result` | [03, 10.2](03_CoreAndGeneral.md#102-building-without-exceptions) |
+| Nested recovery | A new error reported for a StateMachine while its previous recovery is still in progress. | [05, 8.4](05_StateManagement.md#84-nested-recovery) |
 | Network Binding | How a service is represented on a specific transport, for example SOME/IP or DDS: serialization and protocol. | 08 |
 | No rollback semantics | A recoverability class: the failed call may have had side effects; invariants hold | [03, 6.6](03_CoreAndGeneral.md#66-recoverability-classes) |
 | Non-modeled message | A log message that is built and sent completely at run time ("verbose" in DLT). | 10 |
@@ -1235,6 +1263,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Raw Data Stream | Unstructured bytes exchanged with an external device, such as a sensor, over TCP, UDP or IEEE 1722. It is a functional cluster of its own, no longer part of Communication Management. | 09 |
 | Rebind | The assignment behavior of `Optional<T&>` and `Result<T&>`: the object refers to the new target afterwards | [03, 11.5](03_CoreAndGeneral.md#115-optional-and-variant) |
 | Recommended package | The package name that the meta-model proposes for an element kind, for example `ServiceInterfaces`. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
+| Recovery notification | The call of State Management's `RecoveryHandler` when a Global Supervision expires, and its configuration. | [06, 12](06_PlatformHealthManagement.md#12-recovery-notifying-state-management) |
 | Registry | An internal component that gives other clusters access to manifest information. Not used by applications. | [01, 5.7](01_PlatformOverview.md#57-configuration), [02, 11.8](02_Manifests.md#118-how-the-platform-consumes-manifests-at-run-time) |
 | Reporting Process | A process that reports `kRunning` using `ExecutionClient`. This is the normal case. | [04, 2.4](04_ExecutionManagement.md#24-process-flavors) |
 | RequestedState | The target state of a transition. | [04, 8.1](04_ExecutionManagement.md#81-vocabulary) |
@@ -1247,6 +1276,8 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Routine | A function in the ECU that a tester starts, stops or queries with the UDS service RoutineControl. | 12a |
 | Runnable (Runnable Entity) | In the Classic Platform, a part of a software component that the RTE can start and that is executed in the context of an OS task. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
 | Runtime Environment (RTE) | In the Classic Platform, the generated layer between the application software components and the Basic Software. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
+| S2R Hub | The part of State Management that asks the S2R Satellites to enter or leave Suspend Mode and then tells the OS to suspend. | [05, 2.8](05_StateManagement.md#28-suspend-to-ram-terms) |
+| S2R Satellite | An object in an S2R-Aware application that registers with the S2R Hub and is notified before suspend and after wake-up. | [05, 2.8](05_StateManagement.md#28-suspend-to-ram-terms) |
 | Safety Element out of Context (SEooC) | A safety element developed without a specific vehicle context, based on assumptions; at best, the architecture of the Adaptive Platform can be considered one. | [01, 8.3](01_PlatformOverview.md#83-safety) |
 | ScheduleTable | In the Classic OS, a statically defined set of expiry points that activate tasks or set events at fixed offsets. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
 | Secure Channel | A communication channel that provides at least integrity and authenticity, and authenticates at least one side. | 08, 14 |
@@ -1268,7 +1299,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Signal | A piece of data, such as the vehicle speed, that is exchanged in signal-based communication, typically in a PDU on CAN. | 08 |
 | Signal-to-Service Translation | The standardized mapping between signal-based communication and service-oriented communication, in both directions. | 08 |
 | Skeleton (Service Skeleton) | The generated base class from which a provider implements a service and connects it to Communication Management. | 07 |
-| SM control application | A project-specific application that decides which state the State Management *StateMachine* should request next. | 05 |
+| SMControlApplication | The project-specific application that decides which StateMachine transitions to request; it also decides whether an update is allowed. | [05, 2.6](05_StateManagement.md#26-smcontrolapplication) |
 | Snapshot Record | Environmental data, such as the vehicle speed, that Diagnostic Management stores when a DTC occurs. | 12b |
 | Software Cluster | The unit of deployment and update: a set of executables, manifests and data, which claims Function Groups. It is installed as one Software Package. The meta-class is `SoftwareCluster`. | [00, 6.3](#63-the-hpc-machine), [02, 10.2](02_Manifests.md#102-software-cluster-the-uploadable-unit), 13 |
 | Software Cluster Design | The OEM's design-level contract for a Software Cluster (meta-class `SoftwareClusterDesign`). | [02, 10.1](02_Manifests.md#101-software-cluster-design-the-oems-contract) |
@@ -1281,18 +1312,23 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | StartupConfig | A reusable set of start parameters for a process. | [04, 13.5](04_ExecutionManagement.md#135-startupconfig) |
 | StateClientInterface | The port interface of the R-port through which State Management controls one Function Group (status draft in R25-11). | [04, 13.10](04_ExecutionManagement.md#1310-state-management-access-stateclientinterface-and-functiongroupportmapping) |
 | StateDependentStartupConfig | Links a process to a `StartupConfig` for a set of Function Group States, with dependencies and resources. | [04, 13.4](04_ExecutionManagement.md#134-statedependentstartupconfig-and-executiondependency), [02, 8.2](02_Manifests.md#82-state-dependent-startup-configuration) |
-| State Management | The functional cluster that decides which Function Group States are requested. | [04, 7.4](04_ExecutionManagement.md#74-division-of-responsibilities-sm-decides-em-executes), 05 |
-| StateMachine (State Management) | A configurable state machine of State Management that covers standard cases with little code. A project-specific application requests its transitions. | 05 |
+| StateMachine State | A state of a State Management StateMachine (a `ModeDeclaration`); entering it executes its ActionList. Not the same as a Function Group State. | [05, 2.2](05_StateManagement.md#22-statemachine-statemachine-state-and-initial-state) |
+| State Management | The functional cluster that decides which Function Group States are requested. | [04, 7.4](04_ExecutionManagement.md#74-division-of-responsibilities-sm-decides-em-executes), [05, 1.1](05_StateManagement.md#11-what-is-state-management) |
+| StateMachine (State Management) | A configurable state machine of State Management that covers standard cases with little code. A project-specific application requests its transitions. | [05, 2.2](05_StateManagement.md#22-statemachine-statemachine-state-and-initial-state) |
 | strictMode | Trusted-platform mode in which software that fails a check is never launched. | [04, 12.3](04_ExecutionManagement.md#123-launch-behavior-modes) |
-| Supervised entity | The part of a process whose execution PHM supervises through its checkpoints. | 06 |
+| Supervised Entity | A whole or a part of a software component type that is supervised; a collection of checkpoints. | [06, 2.1](06_PlatformHealthManagement.md#21-supervised-entity-checkpoint-and-supervised-entity-instance) |
+| Supervised Entity Instance | One occurrence of a Supervised Entity, identified by its port in an executable and its process. | [06, 5.5](06_PlatformHealthManagement.md#55-multiple-instances-of-a-supervised-entity) |
 | Supervised Process | A process that PHM supervises. EM informs PHM about its lifecycle. | [04, 5.9](04_ExecutionManagement.md#59-synchronization-with-platform-health-management) |
+| Supervision Mode | A state of the machine or a Function Group in which supervisions are performed with a specific set of parameters. | [06, 11](06_PlatformHealthManagement.md#11-supervision-modes-and-function-group-state-changes) |
 | Support data value | Optional vendor-specific data inside an `ErrorCode`; ignored by comparisons | [03, 7.1](03_CoreAndGeneral.md#71-errorcode-value-domain-and-support-data) |
+| Suspend-to-RAM (S2R) | A low-power mode in which RAM keeps the system state while most of the machine is powered down, for a fast wake-up. | [05, 2.8](05_StateManagement.md#28-suspend-to-ram-terms) |
 | Target configuration | Model content whose scope is mostly local to one compute node, usually created during integration. Formerly called "deployment". | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration) |
 | Task (OS) | The smallest schedulable unit managed by the operating system; a thread in POSIX terms. | [01, 7.10](01_PlatformOverview.md#710-os-tracing-with-arti) |
 | Termination handler | The callback that `ExecutionClient` invokes, in a background thread, when `SIGTERM` arrives. | [04, 5.5](04_ExecutionManagement.md#55-terminating-a-process) |
 | Thread-safe | Callable concurrently on the same object by several threads without synchronization by the caller | [03, 12.6](03_CoreAndGeneral.md#126-thread-safety) |
 | Time Base | A synchronized time, such as `VehicleTime`, that Time Synchronization offers to applications. | 09 |
 | Timing protection | In the Classic OS, the run-time enforcement of statically configured execution budgets, lock budgets and minimum inter-arrival times. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
+| TransitionRequestTable | The rules of a StateMachine that map a requested value and the current StateMachine State to the next StateMachine State. | [05, 2.4](05_StateManagement.md#24-transitionrequesttable-and-errorrecoverytable) |
 | Trust Anchor | The root of trust, for example a public key in protected memory, from which all authenticity checks derive. | [04, 12.1](04_ExecutionManagement.md#121-trusted-platform-basics) |
 | Trusted Platform | A platform on which only software of verified integrity and authenticity runs. | [04, 12.1](04_ExecutionManagement.md#121-trusted-platform-basics) |
 | UDS | Unified Diagnostic Services, the diagnostic protocol of ISO 14229 that testers use. | 12a |
@@ -1309,7 +1345,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Vendor-specific error | An error that an implementation returns in addition to the specified ones, in a vendor-specific domain | [03, 7.6](03_CoreAndGeneral.md#76-vendor-specific-errors) |
 | Violation | A broken API contract, for example two `ExecutionClient` objects. It is logged, and the offending process is terminated. | [04, 10.1](04_ExecutionManagement.md#101-errors-and-violations), [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
 | Violation message | The standardized fatal DLT message of a Standardized Violation | [03, 15.3](03_CoreAndGeneral.md#153-violation-messages) |
-| Watchdog | A hardware or software timer that resets the system if it is not triggered in time. PHM triggers it. | 06 |
+| Watchdog | A hardware or software timer that resets the system if it is not triggered in time. PHM triggers it. | [06, 13](06_PlatformHealthManagement.md#13-the-hardware-watchdog-and-critical-failures) |
 | Worst-case execution time (WCET) | The longest possible execution time of a task or interrupt handler. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
 
 ---
@@ -1334,7 +1370,7 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 
 | Function Group | States | Processes |
 | --- | --- | --- |
-| `MachineFG` | `Off`, `Startup`, `Driving`, `Shutdown`, `Restart`, `Verify` | `StateManager`, `PlatformHealth`, `PowerControl` |
+| `MachineFG` | `Off`, `Startup`, `Driving`, `Shutdown`, `Restart`, `Verify` | `StateManager`, `SmControl`, `PlatformHealth`, `PowerControl` |
 | `ADAS` | `Off`, `Normal`, `Degraded`, `Verify` | `Storage`, `CameraDriver`, `CalibrationCheck` (Normal), `LegacyLogger`, `LoggerCompanion`, `Fusion` (Normal), `FusionLite` (Degraded) |
 
 ### B.3 Services, Signals and Streams
@@ -1342,11 +1378,11 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 | Element | Provider → consumers | Binding and IDs |
 | --- | --- | --- |
 | `CameraService` | `CameraDriver` → `Fusion`, `Cockpit` | SOME/IP `0x1001`/`0x0001`, TCP port 30501, TLS; namespace `hpc::camera`, version 1.0 |
-| `AdasStatusService` | `StateManager` → `InstrumentCluster`, `Cockpit` | S2S (`AdasHmi`, `0x2A0`); SOME/IP `0x1002`/`0x0001` |
+| `AdasStatusService` | `SmControl` → `InstrumentCluster`, `Cockpit` | S2S (`AdasHmi`, `0x2A0`); SOME/IP `0x1002`/`0x0001` |
 | `ObjectListService` | `Fusion` or `FusionLite` → `Storage`, `Cockpit` | DDS domain 1, topic `AdasObjectList` |
 | `CalibrationDataService` | `Storage` → `CalibrationCheck`, `Fusion`, `FusionLite`; written by `CameraDriver` | Local IPC |
-| `VehicleDynamicsService` | S2S → `Fusion`, `FusionLite` | `ChassisDynamics` (`0x101`, 10 ms) |
-| `PowerModeService` | S2S → `StateManager` | `VehicleMode` (`0x120`, 100 ms) |
+| `VehicleDynamicsService` | S2S → `Fusion`, `FusionLite`, `SmControl` | `ChassisDynamics` (`0x101`, 10 ms) |
+| `PowerModeService` | S2S → `SmControl` | `VehicleMode` (`0x120`, 100 ms); values `Off`, `On` |
 | SOME/IP-SD | all SOME/IP nodes | UDP 30490, `239.192.255.251` |
 | Radar stream | `FrontRadar` → `Fusion`, `FusionLite` | Raw Data Stream, TCP 50001 |
 
@@ -1355,7 +1391,7 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 | Area | Elements |
 | --- | --- |
 | Persistency | `Storage`: `CalibrationKvs` (`CameraExtrinsics`, `RadarAlignment`), `Recordings`. `Fusion`: `FusionParams` (`TrackerTuning`) |
-| Error domains | `CameraErrors` `0x1001` (`ExposureModeNotSupported` 1); `AdasExecutionErrors` `0x1002` (`FusionFailed` 42); `FusionErrors` `0x1003`, hand-written in `Fusion` (`kInputTimeout` 1, `kCalibrationImplausible` 2) |
+| Error domains | `CameraErrors` `0x1001` (`ExposureModeNotSupported` 1); `AdasExecutionErrors` `0x1002` (`FusionFailed` 42, `AdasStateTimeout` 60, `AdasTransitionRequestFailed` 61); `FusionErrors` `0x1003`, hand-written in `Fusion` (`kInputTimeout` 1, `kCalibrationImplausible` 2) |
 | Diagnostics | DID `0x0101` `FusionSoftwareVersion`; routine `0x0201` `CalibrateCamera`; ECU reset (`0x11`); event `CameraBlocked` → DTC `0x9A1011`, snapshot `VehicleSpeed` |
 | Update | `AdasCluster` 1.0.0 → 1.1.0 (`fusion` 1.1.0, migration of `FusionParams`); activation through `ADAS.Verify`; rollback to 1.0.0. Vendor IDs `0x1111` (`HpcPlatformCore`) and `0x1234` (`AdasCluster`) |
 
@@ -1364,9 +1400,10 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 | Area | Elements |
 | --- | --- |
 | Keys and certificates | `OemRootCa`, `HpcDeviceCert` and `HpcDeviceKey`, `PackageVerificationKey`, `CalibrationMacKey` (in the HSM); vendor certificates `PlatformVendorCert`, `AdasSupplierCert` |
-| Access rights | Only `Fusion` uses `CameraService`; only `CameraDriver` calls `SetCalibration`; only `StateManager` uses `StateClient`; `FusionLite` is denied |
+| Access rights | Only `Fusion` uses `CameraService`; only `CameraDriver` calls `SetCalibration`; only `StateManager` uses `StateClient`; only `SmControl` requests StateMachine transitions; `FusionLite` is denied |
+| State Management | StateMachine approach: `HpcController` (Controller, `MachineFG`) and `AdasAgent` (Agent, `ADAS`, `AdasPnHandle`), run by `StateManager`; transitions requested by `SmControl` |
 | Security events | EM integrity check failed, IAM access denied, firewall packet dropped → IdsM |
-| Supervision | `Fusion`: 50 ms cycle, checkpoints `CycleStart`, `InputsRead`, `ObjectsPublished`, `CycleEnd`; `CameraDriver`: `ImageCaptured` |
+| Supervision | `Fusion` (`FusionCycle`): 50 ms cycle, checkpoints `CycleStart`, `InputsRead`, `ObjectsPublished`, `CycleEnd`, alive, deadline and logical supervision; `CameraDriver` (`CameraImageLoop`): `ImageCaptured`, alive supervision; `StateManager` (`StateManagerHeartbeat`): `MainLoop`, alive supervision; recovery notification `AdasRecovery` to `StateManager` |
 | Time and NM | Time base `VehicleTime` (gPTP, master `CentralGateway`); partial network `AdasPn` |
 | Log IDs | `Fusion`: `FUSN` (`MAIN`, `TRCK`); `CameraDriver`: `CAMD` (`MAIN`, `IMGS`) |
 

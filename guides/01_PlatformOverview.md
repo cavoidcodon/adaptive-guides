@@ -477,7 +477,7 @@ flowchart LR
     subgraph APW["Adaptive Platform: HPC"]
         FU["Perception and fusion<br/>(Fusion)"]
         OL["Object list<br/>(ObjectListService)"]
-        SMG["ADAS status<br/>(StateManager)"]
+        SMG["ADAS status<br/>(SmControl)"]
     end
     CAM["Front camera"] --> FU
     FR["FrontRadar<br/>(not AUTOSAR)"] --> FU
@@ -686,7 +686,7 @@ The following diagram shows the two Software Clusters of `HPC` ([guide 00, Secti
 ```mermaid
 flowchart TB
     subgraph M["Machine HPC"]
-        PC["HpcPlatformCore 1.0.0<br/>category PLATFORM_CORE<br/>OS, Execution Management, StateManager,<br/>PlatformHealth, PowerControl,<br/>platform daemons and libraries<br/>Function Group MachineFG"]
+        PC["HpcPlatformCore 1.0.0<br/>category PLATFORM_CORE<br/>OS, Execution Management, StateManager,<br/>SmControl, PlatformHealth, PowerControl,<br/>platform daemons and libraries<br/>Function Group MachineFG"]
         AC["AdasCluster 1.0.0<br/>category APPLICATION_LAYER<br/>the seven ADAS processes<br/>Function Group ADAS"]
     end
     AC -.->|"may depend on"| PC
@@ -773,7 +773,7 @@ The list of clusters in this chapter is the list of building blocks in the *SW A
 | [Cryptography](#55-security) | crypto | `ara::crypto` | Security | Foundation | yes | 14 |
 | [Intrusion Detection System Manager](#55-security) | idsm | `ara::idsm` | Security | Foundation | yes | 16 |
 | [Firewall](#55-security) | fw | `ara::fw` | Security | Foundation | yes | 16 |
-| [Platform Health Management](#56-safety) | phm | `ara::phm` | Safety | Foundation | yes | 06 |
+| [Platform Health Management](#56-safety) | phm | `ara::phm` | Safety | Foundation | yes | [06](06_PlatformHealthManagement.md) |
 | [Safe Hardware Acceleration](#56-safety) | shwa | `ara::shwa` | Safety | Foundation | no | not covered |
 | [Update and Configuration Management](#57-configuration) | ucm | `ara::ucm` | Configuration | Platform Service | yes | 13 |
 | [Vehicle Update and Configuration Management](#57-configuration) | vucm | `ara::vucm` | Configuration | Vehicle Service | yes | 13 (context only) |
@@ -969,10 +969,10 @@ The *SW Architecture* describes how the platform starts (*SW Architecture*, Sect
 
 1. The operating system initializes in an implementation-specific way, including drivers and low-level services. The platform requires the **watchdog to be enabled before the platform starts**, for example by the bootloader or the operating system.
 2. The operating system starts **Execution Management as the first process of the platform** ([SWS_OSI_01040]).
-3. EM activates the Machine State `Startup`, that is, `MachineFG.Startup`. This starts the processes configured for it. **State Management must be part of `Startup`**; PHM and application processes may be part of it too. On `HPC`, EM starts `StateManager`, `PlatformHealth` and the daemons of the other platform clusters in `Startup` ([guide 00, Section 6.3](00_LearningPath.md#63-the-hpc-machine)).
+3. EM activates the Machine State `Startup`, that is, `MachineFG.Startup`. This starts the processes configured for it. **State Management must be part of `Startup`**; PHM and application processes may be part of it too. On `HPC`, EM starts `StateManager`, `SmControl`, `PlatformHealth` and the daemons of the other platform clusters in `Startup` ([guide 00, Section 6.3](00_LearningPath.md#63-the-hpc-machine)).
 4. Every started process calls `ara::core::Initialize()` and reports `kRunning` to EM.
 5. PHM starts to serve the watchdog. **The time between enabling the watchdog and the start of PHM must be shorter than the watchdog timeout.** The integrator must ensure this.
-6. When `Startup` has been reached, State Management takes over and determines the next Function Group States. On `HPC`, `StateManager` requests `MachineFG.Driving` when `PowerMode` reports that the vehicle is switched on, and then `ADAS.Normal`.
+6. When `Startup` has been reached, State Management takes over and determines the next Function Group States. On `HPC`, the project-specific application `SmControl` asks State Management for the transition `Drive` when `PowerMode` reports that the vehicle is switched on; `StateManager` then requests `MachineFG.Driving` and `ADAS.Normal` ([guide 05, Section 5.5](05_StateManagement.md#55-worked-example-smcontrol-brings-hpc-from-startup-to-driving)).
 
 ```mermaid
 sequenceDiagram
@@ -994,7 +994,7 @@ sequenceDiagram
     PH->>WD: serve, before the timeout expires
     D->>EM: ReportExecutionState(kRunning)
     SMG->>EM: GetInitialMachineStateTransitionResult()
-    Note over SMG: State Management takes over
+    Note over SMG: State Management takes over;<br/>SmControl requests the transition Drive
     SMG->>EM: SetState(MachineFG.Driving), then SetState(ADAS.Normal)
     EM->>A: start in dependency order
     A->>EM: ReportExecutionState(kRunning)
@@ -1433,6 +1433,7 @@ flowchart TB
     subgraph PLAT["Platform processes, Software Cluster HpcPlatformCore, Function Group MachineFG"]
         direction LR
         SMG["StateManager"]
+        SMC["SmControl"]
         PH["PlatformHealth"]
         PCT["PowerControl"]
         DAE["Daemons of CM, DM, UCM, Crypto,<br/>IdsM, Firewall, NM and TSync"]
@@ -1456,8 +1457,9 @@ The following matrix shows which functional clusters each process of `HPC` uses 
 
 | Process | EM | CM | Log | Per | PHM | Crypto | Diag | RDS | TSync | Other | Owner guides |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `StateManager` | reports state; uses `StateClient` | uses `PowerModeService`, provides `AdasStatusService` | | | supervised by PHM; receives its recovery requests | | | | | requests `AdasPn` from NM | 04, 05 |
-| `PlatformHealth` | reports state | | | | is PHM | | | | | serves the hardware watchdog | 04, 06 |
+| `StateManager` | reports state; uses `StateClient` | provides the State Management services (`StateMachineService`, `StateMachineNotification`, `UpdateAllowedService`, `UpdateRequest`) | | | supervised by PHM; receives its recovery requests | | | | | requests `AdasPn` from NM | 04, [05](05_StateManagement.md#31-where-state-management-sits-in-the-platform) |
+| `SmControl` | reports state | uses `PowerModeService`, `VehicleDynamicsService` and the State Management services; provides `AdasStatusService` | | | | | implements `EcuResetRequest` | | | | [05](05_StateManagement.md#26-smcontrolapplication), 08, 12a |
+| `PlatformHealth` | reports state | | | | is PHM | | | | | serves the hardware watchdog | 04, [06](06_PlatformHealthManagement.md#13-the-hardware-watchdog-and-critical-failures) |
 | `PowerControl` | started in `Shutdown` and `Restart` | | | | | | | | | powers off or reboots through the OS | 04, 05 |
 | `Storage` | reports state | provides `CalibrationDataService`, uses `ObjectListService` | | `CalibrationKvs`, `Recordings` | | MAC with `CalibrationMacKey` | | | | | 04, 07, 11 |
 | `CameraDriver` | reports state | provides `CameraService`, calls `SetCalibration` | `CAMD` | | supervised (alive) | | routine `CalibrateCamera`, monitor `CameraBlocked` | | time-stamps images with `VehicleTime` | | 07, 09, 12a, 12b |
@@ -1501,7 +1503,7 @@ sequenceDiagram
 
 | Step | What happens | Clusters involved | Guide |
 | --- | --- | --- | --- |
-| Checkpoints | `Fusion` reports checkpoints; PHM checks that the cycle is alive, on time and in the right order | Platform Health Management | 06 |
+| Checkpoints | `Fusion` reports checkpoints; PHM checks that the cycle is alive, on time and in the right order | Platform Health Management | [06](06_PlatformHealthManagement.md#57-worked-example-instrumenting-fusion-and-cameradriver) |
 | Camera image | `CameraDriver` sends the image as an event; Communication Management delivers it locally | Communication Management, Time Synchronization (time stamp) | 07, 09 |
 | Vehicle dynamics | The CAN signals of `ChassisECU` reach `HPC` as PDUs through `CentralGateway` and are translated into events of `VehicleDynamicsService` | Communication Management (Signal-to-Service translation) | 08 |
 | Radar | `Fusion` reads the raw detections from its TCP connection to `FrontRadar` | Raw Data Stream | 09 |

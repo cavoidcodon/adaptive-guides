@@ -10,7 +10,7 @@
 >
 > **Version:** 1.0 (draft, pending review)
 >
-> **Part of the series:** [AUTOSAR Adaptive Platform Training Guides](00_LearningPath.md). Previous: [03 `ara::core` and General Conventions](03_CoreAndGeneral.md). Next: 05 State Management (`05_StateManagement.md`, planned).
+> **Part of the series:** [AUTOSAR Adaptive Platform Training Guides](00_LearningPath.md). Previous: [03 `ara::core` and General Conventions](03_CoreAndGeneral.md). Next: [05 State Management](05_StateManagement.md).
 
 ## About This Guide
 
@@ -62,6 +62,7 @@ All guides of the series use the same invented system, so that the concepts can 
 | Process | Executable | Function Group | Referenced states | Kind | Execution Dependencies |
 | --- | --- | --- | --- | --- | --- |
 | `StateManager` | `state_manager` | MachineFG | Startup, Driving, Shutdown, Restart, Verify | Reporting; the State Management daemon (`functionClusterAffiliation = STATE_MANAGEMENT`) | none |
+| `SmControl` | `sm_control` | MachineFG | Startup, Driving, Verify | Reporting; the project-specific control application of State Management, added by [guide 05](05_StateManagement.md#26-smcontrolapplication) | none |
 | `PlatformHealth` | `platform_health` | MachineFG | Startup, Driving, Shutdown, Restart, Verify | Reporting; the Platform Health Management daemon | none |
 | `PowerControl` | `power_control` | MachineFG | Shutdown, Restart | Reporting; project-specific process that actually powers off or reboots the OS | none |
 | `Storage` | `storage` | ADAS | Normal, Degraded (one shared startup configuration) | Reporting; a storage service | none |
@@ -72,7 +73,7 @@ All guides of the series use the same invented system, so that the concepts can 
 | `Fusion` | `fusion` | ADAS | Normal | Reporting; the full-featured sensor fusion | `CalibrationCheck` must be *Terminated*, `LoggerCompanion` must be *Running* |
 | `FusionLite` | `fusion_lite` | ADAS | Degraded | Reporting; the reduced-function fallback | `LoggerCompanion` must be *Running* |
 
-The first three processes belong to `HpcPlatformCore`, the seven ADAS processes to `AdasCluster`. The table omits other platform daemons, such as Communication Management and Diagnostic Management, for brevity. Do not worry if some of the terms in the table are new: they are all explained in the following chapters. [Section 13.11](#1311-the-running-example-complete-configuration) shows the complete EM configuration of the example.
+The first four processes belong to `HpcPlatformCore`, the seven ADAS processes to `AdasCluster`. The table omits other platform daemons, such as Communication Management and Diagnostic Management, for brevity. Do not worry if some of the terms in the table are new: they are all explained in the following chapters. [Section 13.11](#1311-the-running-example-complete-configuration) shows the complete EM configuration of the example.
 
 ## Table of Contents
 
@@ -546,7 +547,7 @@ flowchart LR
 | Identity and Access Management | EM → IAM | Implementation-defined | Association between a Modelled Process and the identity of its OS process ([SWS_EM_02400]) | No |
 | Update and Configuration Management | UCM → EM (indirect) | Software installation | New executables and Processed Manifests. Manifests may be converted on the machine at installation time. | No (indirect) |
 
-Each partner has its own guide in this series: the operating system interface in [guide 01, Chapter 7](01_PlatformOverview.md#7-the-operating-system-interface); State Management in guide 05 (`05_StateManagement.md`, planned); Platform Health Management in guide 06 (`06_PlatformHealthManagement.md`, planned); Log and Trace in guide 10 (`10_LogAndTrace.md`, planned); Update and Configuration Management in guide 13 (`13_UpdateAndConfigManagement.md`, planned); Identity and Access Management in guide 15 (`15_IdentityAndAccessManagement.md`, planned); and the Intrusion Detection System Manager in guide 16 (`16_IDSM_Firewall.md`, planned).
+Each partner has its own guide in this series: the operating system interface in [guide 01, Chapter 7](01_PlatformOverview.md#7-the-operating-system-interface); State Management in [guide 05](05_StateManagement.md); Platform Health Management in [guide 06](06_PlatformHealthManagement.md); Log and Trace in guide 10 (`10_LogAndTrace.md`, planned); Update and Configuration Management in guide 13 (`13_UpdateAndConfigManagement.md`, planned); Identity and Access Management in guide 15 (`15_IdentityAndAccessManagement.md`, planned); and the Intrusion Detection System Manager in guide 16 (`16_IDSM_Firewall.md`, planned).
 
 > **Note:** Communication Management does not appear in the table as an EM partner, although EM starts the CM daemon like any other daemon. Applications use CM's **service discovery**, not EM, to wait until another application's service is available (see [Section 6.6](#66-prefer-service-discovery-for-applications)).
 
@@ -934,7 +935,7 @@ PHM supervises processes, for example with alive, deadline and logical supervisi
 | "Initiating process termination" | To stop the supervisions before the process goes away | [SWS_EM_01211] |
 | "Process terminated" | To supervise self-terminating processes | [SWS_EM_01212] |
 
-These notifications use vendor-specific interfaces between the two functional clusters. Their signatures are not standardized. How PHM supervises processes is the topic of guide 06 (`06_PlatformHealthManagement.md`, planned).
+These notifications use vendor-specific interfaces between the two functional clusters. Their signatures are not standardized. How PHM supervises processes is the topic of guide 06; [Chapter 10](06_PlatformHealthManagement.md#10-supervision-and-the-process-lifecycle) there shows how PHM uses these three events.
 
 ### 5.10 Child Processes
 
@@ -1163,7 +1164,7 @@ In the running example, `Storage`, `CameraDriver` and `LegacyLogger` behave like
 | Reacts to failures | Decides on recovery | Detects and reports: through the `SetState` result or the `undefinedStateCallback` |
 | Controls a given Function Group | Exactly one SM process per Function Group ([SWS_EM_CONSTR_02560]) | Exactly one EM per machine |
 
-Several processes with State Management responsibilities may exist on a machine. Each Function Group, however, must be referenced by at most one `FunctionGroupPortMapping`, so that it is clear which SM process is responsible for it ([Section 13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)). How State Management decides which state to request is the topic of guide 05 (`05_StateManagement.md`, planned).
+Several processes with State Management responsibilities may exist on a machine. Each Function Group, however, must be referenced by at most one `FunctionGroupPortMapping`, so that it is clear which SM process is responsible for it ([Section 13.10](#1310-state-management-access-stateclientinterface-and-functiongroupportmapping)). How State Management decides which state to request is the topic of [guide 05](05_StateManagement.md).
 
 > **Key takeaways**
 >
@@ -2140,7 +2141,7 @@ ModeDeclarationGroup ProcessStates: [ Running, Terminated ]   # type of every pr
 
 SoftwareCluster HpcPlatformCore:                         # category PLATFORM_CORE
   claimedFunctionGroup: [ MachineFG ]
-  containedProcess: [ StateManager, PlatformHealth, PowerControl ]
+  containedProcess: [ StateManager, SmControl, PlatformHealth, PowerControl ]
 SoftwareCluster AdasCluster:                             # category APPLICATION_LAYER
   claimedFunctionGroup: [ ADAS ]
   containedProcess: [ Storage, CameraDriver, CalibrationCheck, LegacyLogger, LoggerCompanion, Fusion, FusionLite ]
@@ -2172,6 +2173,10 @@ Process StateManager:
     - functionGroupState: [ MachineFG.Startup, MachineFG.Driving, MachineFG.Shutdown, MachineFG.Restart, MachineFG.Verify ]
       startupConfig: platform_cfg
       resourceGroup: platform_rg
+Process SmControl:                                       # the SMControlApplication of guide 05
+  executable: sm_control
+  stateDependentStartupConfig:
+    - { functionGroupState: [ MachineFG.Startup, MachineFG.Driving, MachineFG.Verify ], startupConfig: platform_cfg, resourceGroup: platform_rg }
 Process PlatformHealth:                                  # same states, config and group as StateManager
   executable: platform_health
   functionClusterAffiliation: PLATFORM_HEALTH_MANAGEMENT
@@ -2247,6 +2252,7 @@ Each value has a reason:
 | `storage_cfg` termination timeout | 3 s | `Storage` flushes the recordings before it exits. |
 | `PowerControl` in `Shutdown` and `Restart` | | Satisfies [SWS_EM_CONSTR_02558] and [SWS_EM_CONSTR_02559]; powers the machine off or reboots it ([Section 9.4](#94-shutdown-and-restart)). |
 | `StateManager` in every Machine State except `Off` | | Somebody must always be able to request the next state ([SWS_SM_CONSTR_00001]). |
+| `SmControl` in `Startup`, `Driving` and `Verify` only | | The control application that requests the transitions of State Management ([guide 05, Section 2.6](05_StateManagement.md#26-smcontrolapplication)). It does not reference `Shutdown` and `Restart`, so EM terminates it before the machine goes down. It is an ordinary application, without `functionClusterAffiliation`. |
 | Two `FunctionGroupPortMapping`s | `MachineFG`, `ADAS` | `StateManager` controls both groups and is the only process that does. |
 | No process in `ADAS.Verify` | | Guide 13 (`13_UpdateAndConfigManagement.md`, planned) decides what runs during the verification of an update. |
 
@@ -2904,12 +2910,12 @@ In this example, `Fusion` needed 284 ms from creation to `kRunning`, and it late
 
 1. The bootloader authenticates and starts the OS, and the OS authenticates and starts EM.
 2. EM verifies the Processed Manifests. The machine runs in `strictMode`, and all checks pass. Every Function Group is in `Off`.
-3. EM self-initiates `MachineFG`: `Off` → `Startup` and starts `PlatformHealth` and `StateManager`, together with the other platform daemons. Each of them reports `kRunning`.
+3. EM self-initiates `MachineFG`: `Off` → `Startup` and starts `PlatformHealth`, `StateManager` and `SmControl`, the control application of State Management, together with the other platform daemons. Each of them reports `kRunning`.
 4. `StateManager` calls `GetInitialMachineStateTransitionResult()`, and the future reports success. From now on, `StateManager` is in control (see [Section 9.2](#92-machine-startup-step-by-step)).
 
 ### 16.2 Phase 2: Bringing Up the Vehicle Function
 
-- `StateManager` requests `MachineFG.Driving`. `StateManager` and `PlatformHealth` reference `Startup` and `Driving` through the same startup configuration, so EM leaves them running.
+- When the vehicle is switched on, `SmControl` asks State Management for the transition `Drive` ([guide 05, Section 5.5](05_StateManagement.md#55-worked-example-smcontrol-brings-hpc-from-startup-to-driving)), and `StateManager` requests `MachineFG.Driving`. `StateManager`, `SmControl` and `PlatformHealth` reference `Startup` and `Driving` through the same startup configuration, so EM leaves them running.
 - `StateManager` then requests `ADAS.Normal`. EM starts the ADAS processes in the three waves derived from the Execution Dependencies (see [Section 6.5](#65-dependencies-in-the-running-example)).
 
 ```mermaid
@@ -2953,7 +2959,7 @@ Some time later, `Fusion` crashes with a segmentation fault. No state transition
 3. EM logs `ProcessAbnormalTermination`. Because `Fusion` is supervised, EM informs PHM that the process has terminated.
 4. EM does **nothing else**. It does not restart `Fusion`, and it leaves all other ADAS processes running.
 
-`StateManager` decides, based on its project-specific logic and the error code `42`, to switch ADAS to `Degraded`.
+`StateManager` decides, based on its configuration and the error code `42`, to switch ADAS to `Degraded` ([guide 05, Section 8.7](05_StateManagement.md#87-worked-example-fusion-fails-and-adas-goes-to-degraded)).
 
 ### 16.4 Phase 4: Recovery to Degraded
 
@@ -2987,9 +2993,9 @@ sequenceDiagram
 
 ### 16.5 Phase 5: Shutdown
 
-1. The driver switches off the vehicle, and `StateManager` decides to shut down.
+1. The driver switches off the vehicle. `SmControl` asks State Management for the transition `PowerOff`, and `StateManager` starts the shutdown ([guide 05, Section 7.5](05_StateManagement.md#75-startup-shutdown-and-restart-of-the-machine)).
 2. `StateManager` requests `ADAS.Off`. EM terminates the processes in reverse dependency order: first `FusionLite`, then `LoggerCompanion`, then `LegacyLogger`. `Storage` and `CameraDriver` can stop in parallel. Every process persists its data and exits with `EXIT_SUCCESS`.
-3. `StateManager` requests `MachineFG.Shutdown`. EM starts `PowerControl`. `StateManager` and `PlatformHealth` reference `Shutdown`, too, so they keep running.
+3. `StateManager` requests `MachineFG.Shutdown`. EM terminates `SmControl`, which does not reference `Shutdown`, and starts `PowerControl`. `StateManager` and `PlatformHealth` reference `Shutdown`, too, so they keep running.
 4. `PowerControl` reports `kRunning`, synchronizes the file systems and powers off the machine in a project-specific way (see [Section 9.4](#94-shutdown-and-restart)).
 
 ### 16.6 Process State Overview
@@ -2997,6 +3003,7 @@ sequenceDiagram
 | Process | After `Startup` | `ADAS.Normal` | After the `Fusion` crash | `ADAS.Degraded` | `MachineFG.Shutdown` |
 | --- | --- | --- | --- | --- | --- |
 | `StateManager` | Running | Running | Running | Running | Running (until power-off) |
+| `SmControl` | Running | Running | Running | Running | Terminated |
 | `PlatformHealth` | Running | Running | Running | Running | Running (until power-off) |
 | `PowerControl` | Idle | Idle | Idle | Idle | Running |
 | `Storage` | Idle | Running | Running | Running (kept) | Terminated |

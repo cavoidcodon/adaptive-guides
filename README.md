@@ -23,8 +23,8 @@ Start with guide 00. It suggests shorter reading paths for specific roles, holds
 | 02 | [Manifests and Methodology](guides/02_Manifests.md) | In review |
 | 03 | [`ara::core` and General Conventions](guides/03_CoreAndGeneral.md) | In review |
 | 04 | [Execution Management](guides/04_ExecutionManagement.md) | Available (v1.0) |
-| 05 | State Management | Planned |
-| 06 | Platform Health Management | Planned |
+| 05 | [State Management](guides/05_StateManagement.md) | In review |
+| 06 | [Platform Health Management](guides/06_PlatformHealthManagement.md) | In review |
 | 07 | Communication Management Part 1: `ara::com` Concepts and API | Planned |
 | 08 | Communication Management Part 2: Network Bindings and Signal-to-Service Translation | Planned |
 | 09 | Network Management, Time Synchronization and Raw Data Stream | Planned |
