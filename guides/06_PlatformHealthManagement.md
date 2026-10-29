@@ -10,7 +10,7 @@
 >
 > **Version:** 1.0 (draft, pending review)
 >
-> **Part of the series:** [AUTOSAR Adaptive Platform Training Guides](00_LearningPath.md). Previous: [05 State Management](05_StateManagement.md). Next: 07 Communication Management Part 1: `ara::com` Concepts and API (`07_CommunicationManagement.md`, planned).
+> **Part of the series:** [AUTOSAR Adaptive Platform Training Guides](00_LearningPath.md). Previous: [05 State Management](05_StateManagement.md). Next: [07 Communication Management Part 1: `ara::com` Concepts and API](07_CommunicationManagement.md).
 
 ## About This Guide
 
@@ -257,7 +257,7 @@ This guide uses the supervisions that guide 00 defines in [Section 6.13](00_Lear
 | Starting, stopping or restarting processes | Execution Management, on request of State Management ([EM guide, Chapter 8](04_ExecutionManagement.md#8-function-group-state-transitions-step-by-step)) |
 | Detecting that a process crashed or exited | Execution Management. PHM learns it from EM ([Section 10.1](#101-what-phm-learns-from-em)). |
 | Supervising processes that do not report their Execution State | Nobody: such processes cannot be supervised (SWS, Section 4.1; [constr_3795]) |
-| Checking the content of data or the integrity of messages | End-to-end protection in Communication Management (guide 08) |
+| Checking the content of data or the integrity of messages | End-to-end protection in Communication Management ([guide 08b](08b_SecureAndSafeCommunication.md)) |
 | Limiting CPU time or memory | The operating system, configured by EM through ResourceGroups ([EM guide, Chapter 11](04_ExecutionManagement.md#11-resource-management)) |
 | Storing diagnostic trouble codes | Diagnostic Management. The interface between PHM and Diagnostic Management is not specified in R25-11 (SWS, Section 4.1). |
 | Forwarding results to another health monitor ("daisy chaining") | Not supported in R25-11 (SWS, Section 4.1) |

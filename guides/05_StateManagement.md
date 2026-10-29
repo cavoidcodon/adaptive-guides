@@ -2124,7 +2124,7 @@ SM itself uses `ara::exec::StateClient` ([EM guide, Section 14.5](04_ExecutionMa
 
 ### 13.2 The Service Interfaces and Their Data Types
 
-The service interfaces are defined in the model (SWS, Chapter 9). Applications use the proxies that the `ara::com` generator creates from them; guide 07 (`07_CommunicationManagement.md`, planned) explains proxies.
+The service interfaces are defined in the model (SWS, Chapter 9). Applications use the proxies that the `ara::com` generator creates from them; [guide 07](07_CommunicationManagement.md#22-skeleton-and-proxy) explains proxies.
 
 **`StateMachineService`** ([SWS_SM_91022]), one per StateMachine ([SWS_SM_00600]):
 
@@ -2351,6 +2351,8 @@ The following sketch shows how `SmControl` uses the services of SM. It is simpli
 // Generated proxies (names and file names are tool-specific):
 #include "ara/sm/statemachineservice_proxy.h"
 #include "ara/sm/updateallowedservice_proxy.h"
+// Generated data type of the field AdasStatus (enumeration over uint8_t):
+#include "hpc/smcontrol/impl_type_adasstatustype.h"
 
 namespace {
 // Must match the TransitionRequestTables of HpcController and AdasAgent (Section 5.2).
@@ -2358,11 +2360,14 @@ constexpr ara::sm::TransitionRequestType kDrive{1};
 constexpr ara::sm::TransitionRequestType kPowerOff{2};
 constexpr ara::sm::TransitionRequestType kReset{3};
 constexpr ara::sm::TransitionRequestType kDegrade{10};
+// The enumerators carry the literal names of the model: Off, Active, Degraded, Unavailable.
+using AdasStatus = hpc::smcontrol::AdasStatusType;
 }  // namespace
 
 class SmControl {
 public:
-    // PowerMode changed (PowerModeService, field PowerMode).
+    // PowerMode changed (PowerModeService, field PowerMode of type hpc::vehicle::PowerModeType).
+    // The notifier handler passes on == (value == hpc::vehicle::PowerModeType::On).
     void OnPowerMode(bool on) { Request(controller_, on ? kDrive : kPowerOff); }
 
     // VehicleSpeed changed (VehicleDynamicsService): allow updates only at standstill.
@@ -2373,10 +2378,10 @@ public:
 
     // CurrentState of AdasAgent changed (StateMachineNotification): publish AdasStatus.
     void OnAdasState(const ara::sm::StateMachineStateNameType& state) {
-        if (state == "Normal")        { PublishAdasStatus(AdasStatus::kActive); }
-        else if (state == "Degraded") { PublishAdasStatus(AdasStatus::kDegraded); }
-        else if (state == "Off")      { PublishAdasStatus(AdasStatus::kOff); }
-        else if (!IsInTransition(state)) { PublishAdasStatus(AdasStatus::kUnavailable); }
+        if (state == "Normal")        { PublishAdasStatus(AdasStatus::Active); }
+        else if (state == "Degraded") { PublishAdasStatus(AdasStatus::Degraded); }
+        else if (state == "Off")      { PublishAdasStatus(AdasStatus::Off); }
+        else if (!IsInTransition(state)) { PublishAdasStatus(AdasStatus::Unavailable); }
         // "inTransition": keep the last published value (Section 5.4)
     }
 
@@ -2392,6 +2397,9 @@ private:
         }
         // kRecoveryTransitionOngoing, kTransitionNotAllowed, ...: log and decide (Section 5.2)
     }
+
+    // Calls AdasStatus.Update(value) on the skeleton of AdasStatusService (omitted).
+    void PublishAdasStatus(AdasStatus value);
 
     // Proxies, created from the handles that FindService returns (omitted):
     ara::sm::proxy::StateMachineServiceProxy controller_;      // HpcController
@@ -2410,11 +2418,12 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-Three details of the sketch are worth noting:
+Four details of the sketch are worth noting:
 
 - **`RequestTransition` blocks until the new ActionList is done.** Do not call it from a callback that must return quickly; use a worker thread or `Future::then`.
 - **`UpdateAllowed` is set immediately at startup**, because the SWS defines no initial value ([Section 9.2](#92-granting-a-session-updateallowed)).
 - **The names compared in `OnAdasState` are configuration names.** A renamed StateMachine State silently breaks this code; generate the constants from the configuration if your tool allows it.
+- **`AdasStatusType` is a generated enumeration.** Its enumerators take the literal names of the model (`Off`, `Active`, `Degraded`, `Unavailable`), without a `k` prefix ([SWS_LBAP_00028]; [guide 07, Section 5.5](07_CommunicationManagement.md#55-data-types)).
 
 > **Key takeaways**
 >
@@ -2824,6 +2833,7 @@ If you port material from R22-11 or older, expect diagnostic resets, communicati
 - *Specification of Platform Health Management* (`AUTOSAR_AP_SWS_PlatformHealthManagement`)
 - *Specification of Diagnostics* (`AUTOSAR_AP_SWS_Diagnostics`)
 - *Specification of Adaptive Platform Core* (`AUTOSAR_AP_SWS_Core`)
+- *Specification of Language Binding for modeled AP data types* (`AUTOSAR_AP_SWS_LanguageBindingForModeledAPdatatypes`), for the generated enumeration `AdasStatusType`
 - *Explanation of Adaptive Platform Design* (`AUTOSAR_AP_EXP_PlatformDesign`)
 - *XML Schema* (`AUTOSAR_00054.xsd`, Foundation)
 

@@ -25,8 +25,9 @@ Start with guide 00. It suggests shorter reading paths for specific roles, holds
 | 04 | [Execution Management](guides/04_ExecutionManagement.md) | Available (v1.0) |
 | 05 | [State Management](guides/05_StateManagement.md) | In review |
 | 06 | [Platform Health Management](guides/06_PlatformHealthManagement.md) | In review |
-| 07 | Communication Management Part 1: `ara::com` Concepts and API | Planned |
-| 08 | Communication Management Part 2: Network Bindings and Signal-to-Service Translation | Planned |
+| 07 | [Communication Management Part 1: `ara::com` Concepts and API](guides/07_CommunicationManagement.md) | In review |
+| 08a | [Communication Management Part 2: Network Bindings (SOME/IP, Signal-Based, DDS)](guides/08a_NetworkBindings.md) | In review |
+| 08b | [Communication Management Part 3: Secure Communication and End-to-End Protection](guides/08b_SecureAndSafeCommunication.md) | In review |
 | 09 | Network Management, Time Synchronization and Raw Data Stream | Planned |
 | 10 | Log and Trace | Planned |
 | 11 | Persistency | Planned |

@@ -68,7 +68,7 @@ The model adds the following details to the running example. They are part of th
 | --- | --- | --- |
 | Package structure | Top-level package `/HPC`, with sub-packages named after the recommended package of each element kind; standard types from `/AUTOSAR/StdTypes` | [Section 6.1](00_LearningPath.md#61-purpose-and-rules) |
 | `CameraService` contract | Namespace `hpc::camera`, version 1.0; event `Image` (`CameraImage`), field `CameraStatus` (`CameraState`: `Ok`, `Blocked`, `NotAvailable`; getter and notifier; initial value `NotAvailable`), method `SetExposureMode(mode)` (`ExposureMode`: `Auto`, `Day`, `Night`) with the error `ExposureModeNotSupported` | [Section 6.6](00_LearningPath.md#66-services-and-their-consumers) |
-| SOME/IP IDs of `CameraService` | Service `0x1001`, instance `0x0001`, method `0x0001`, getter `0x0002`, event `0x8001`, notifier `0x8002`, event group `CameraEvents` 1; TCP port 30501 | [Section 6.7](00_LearningPath.md#67-network-deployment) |
+| SOME/IP IDs of `CameraService` | Service `0x1001`, instance `0x0001`, method `0x0001`, getter `0x0002`, event 1 and notifier 2 (`0x8001` and `0x8002` on the wire), event group `CameraEvents` 1; TCP port 30501 | [Section 6.7](00_LearningPath.md#67-network-deployment) |
 | Software components | `CameraDriverSwc` with the P-port `CameraPPort`, `FusionSwc` with the R-port `CameraRPort`; root prototype `Root`; instance specifiers `/camera_driver/Root/CameraPPort` and `/fusion/Root/CameraRPort` | [Section 6.5](00_LearningPath.md#65-processes) |
 | Execution error of `Fusion` | `processExecutionError` 42 is the application error `FusionFailed` of the error domain `AdasExecutionErrors` | [Section 6.5](00_LearningPath.md#65-processes) |
 | Hardware and machine design | Processor `Soc` with four cores `Core0` to `Core3`; machine design `HpcDesign` | [Section 6.3](00_LearningPath.md#63-the-hpc-machine) |
@@ -217,7 +217,7 @@ The following table shows what the platform learns from its manifests and which 
 | The platform learns ... | From | Details in |
 | --- | --- | --- |
 | which processes exist, when they run and with which arguments, priorities and limits | the Execution Manifest | [Chapter 8](#8-the-execution-manifest), [EM guide](04_ExecutionManagement.md#4-configuration-overview) |
-| how each service is offered and found on the network, with which IDs and ports | the Service Instance Manifest | [Chapter 9](#9-the-service-instance-manifest-and-the-instancespecifier), guides 07 and 08 |
+| how each service is offered and found on the network, with which IDs and ports | the Service Instance Manifest | [Chapter 9](#9-the-service-instance-manifest-and-the-instancespecifier), [guide 07](07_CommunicationManagement.md#6-service-discovery-offering-and-finding-services), [guide 08a](08a_NetworkBindings.md) |
 | how the Machine itself is configured: timeouts, resource groups, processors, platform modules | the Machine Manifest | [Chapter 7](#7-system-design-machine-design-and-the-machine-manifest), the cluster guides |
 | which files form one installable unit, and in which version | the Software Distribution content | [Chapter 10](#10-software-clusters-and-software-packages), guide 13 |
 
@@ -1117,7 +1117,7 @@ Finally, the interface itself, with its namespace, version and three elements:
 
 Notice the details that the constraints require: the field has all three `HAS-...` attributes ([constr_1673]); the event has no initial value ([constr_1494]); the error has a code and a domain ([constr_10132], [constr_1625]). The short names of the `SYMBOL-PROPS` (`Ns1`, `Ns2`) are only identifiers; the namespace in the code comes from the `SYMBOL`s.
 
-> **Note (implementation example):** From these types, a generator could emit C++ declarations like the following sketch. The member names are the short names of the sub-elements ([TPS_MANI_03181]), and a `VECTOR` maps to `ara::core::Vector` ([TPS_MANI_03175]). The exact form of the generated code, including the form of enumerations, is defined by the language binding of Communication Management (guide 07) and may differ in your tool.
+> **Note (implementation example):** From these types, a generator could emit C++ declarations like the following sketch. The member names are the short names of the sub-elements ([TPS_MANI_03181]), and a `VECTOR` maps to `ara::core::Vector` ([TPS_MANI_03175]). The exact form of the generated code, including the form of enumerations, is defined by the language binding of Communication Management ([guide 07, Section 5.5](07_CommunicationManagement.md#55-data-types)) and may differ in your tool.
 >
 > ```cpp
 > // Illustrative sketch of generated code. Not normative.
@@ -1166,7 +1166,7 @@ A vehicle contains Classic ECUs and Adaptive Machines, so its system design must
 
 A typical workflow is that the OEM strips everything that does not concern one Machine from the system design and hands the extract to the supplier who develops that Machine (TPS, Section 7.1), just as the Classic Platform uses ECU extracts.
 
-The communication designer describes the network: Ethernet clusters, their physical channels (VLANs) and the network endpoints with their IP addresses. The canonical way to give a Machine an IP address is a `NetworkEndpoint`, referenced from the Ethernet connector of its `MachineDesign` (TPS, Section 7.2.1). The `Machine` meta-class itself is not meant for system design (TPS, Section 7.2). Guide 08 covers the network topology in detail.
+The communication designer describes the network: Ethernet clusters, their physical channels (VLANs) and the network endpoints with their IP addresses. The canonical way to give a Machine an IP address is a `NetworkEndpoint`, referenced from the Ethernet connector of its `MachineDesign` (TPS, Section 7.2.1). The `Machine` meta-class itself is not meant for system design (TPS, Section 7.2). [Guide 08a](08a_NetworkBindings.md) covers the network topology in detail.
 
 ### 7.2 Machine Design
 
@@ -1589,7 +1589,7 @@ The following table maps the keys of the conceptual view in the EM guide to the 
 
 For SOME/IP, the deployment assigns the service identifier `serviceInterfaceId` ([TPS_MANI_03040]), defines the event groups that clients subscribe to ([TPS_MANI_03041]) and the SOME/IP version ([TPS_MANI_03042]). It is the common configuration set that is shared between the server and all clients (TPS, Section 13.2.1). The contract version of the interface is mapped to a version of each deployment, and different deployments of the same interface may use different version numbers ([TPS_MANI_03617]).
 
-The methodology assigns the deployment to the software cluster responsible: the SOME/IP service ID must be unambiguous in the system, and the method IDs, event IDs and event groups unambiguous within the deployment ([TR_AMETH_00027]). Guide 08 explains all SOME/IP and DDS attributes.
+The methodology assigns the deployment to the software cluster responsible: the SOME/IP service ID must be unambiguous in the system, and the method IDs, event IDs and event groups unambiguous within the deployment ([TR_AMETH_00027]). [Guide 08a](08a_NetworkBindings.md) explains all SOME/IP and DDS attributes.
 
 ### 9.2 Provided and Required Service Instances
 
@@ -1665,7 +1665,7 @@ A `ServiceInstanceToMachineMapping` assigns one or several service instances to 
 
 ### 9.6 Worked Example: `CameraService` Between `CameraDriver` and `Fusion`
 
-The SOME/IP deployment of `CameraService` covers its three elements: the event `Image`, the field `CameraStatus` with its getter and notifier, and the method `SetExposureMode`. The event group `CameraEvents` contains the event and the notifier.
+The SOME/IP deployment of `CameraService` covers its three elements: the event `Image`, the field `CameraStatus` with its getter and notifier, and the method `SetExposureMode`. The event group `CameraEvents` contains the event and the notifier. The event IDs in the manifest are 1 and 2, because an event ID must lie between 0 and 32767 ([constr_3408]); on the wire, SOME/IP adds `0x8000` to mark a message as an event, so they appear as `0x8001` and `0x8002` ([SWS_CM_10291]).
 
 ```xml
 <SOMEIP-SERVICE-INTERFACE-DEPLOYMENT>
@@ -1674,7 +1674,7 @@ The SOME/IP deployment of `CameraService` covers its three elements: the event `
     <SOMEIP-EVENT-DEPLOYMENT>
       <SHORT-NAME>Image</SHORT-NAME>
       <EVENT-REF DEST="VARIABLE-DATA-PROTOTYPE">/HPC/ServiceInterfaces/CameraService/Image</EVENT-REF>
-      <EVENT-ID>0x8001</EVENT-ID>
+      <EVENT-ID>1</EVENT-ID>
       <TRANSPORT-PROTOCOL>TCP</TRANSPORT-PROTOCOL>
     </SOMEIP-EVENT-DEPLOYMENT>
   </EVENT-DEPLOYMENTS>
@@ -1689,7 +1689,7 @@ The SOME/IP deployment of `CameraService` covers its three elements: the event `
       </GET>
       <NOTIFIER>
         <SHORT-NAME>Notifier</SHORT-NAME>
-        <EVENT-ID>0x8002</EVENT-ID>
+        <EVENT-ID>2</EVENT-ID>
         <TRANSPORT-PROTOCOL>TCP</TRANSPORT-PROTOCOL>
       </NOTIFIER>
     </SOMEIP-FIELD-DEPLOYMENT>
@@ -1778,9 +1778,9 @@ The mappings connect the ports of the two processes to the instances, and the in
 </SOMEIP-SERVICE-INSTANCE-TO-MACHINE-MAPPING>
 ```
 
-> **Note:** The guide models `Fusion` as a SOME/IP client of `CameraService`, although provider and consumer run on the same Machine. Whether a local consumer uses the SOME/IP instance or a local binding is decided in guide 08. The transport protocol TCP, the event and method IDs and the service discovery timing are illustrative; guide 08 owns them.
+> **Note:** The guide models `Fusion` as a SOME/IP client of `CameraService`, although provider and consumer run on the same Machine. Whether a local consumer uses the SOME/IP instance or a local binding is decided in [guide 08a](08a_NetworkBindings.md). The transport protocol TCP, the event and method IDs and the service discovery timing are illustrative; [guide 08a](08a_NetworkBindings.md) owns them.
 
-The following sequence diagram shows, conceptually, how this configuration is used when `Fusion` starts to look for the service. The exact API and the behavior of Communication Management are the topic of guides 07 and 08.
+The following sequence diagram shows, conceptually, how this configuration is used when `Fusion` starts to look for the service. The exact API and the behavior of Communication Management are the topic of [guide 07](07_CommunicationManagement.md#69-worked-example-fusion-finds-cameraservice) and [guide 08a](08a_NetworkBindings.md).
 
 ```mermaid
 sequenceDiagram
@@ -2131,7 +2131,7 @@ The following checklist produces the model of this guide. Each step names the el
 | `RPortPrototype.requiredInterface` | The interface the port requires | `PortInterface` (tref) | `0..1` | not specified | [TPS_MANI_01040] | Proxy side of the service |
 | `PortPrototype.portPrototypeProps` | Further qualification of a port | `RPortPrototypeProps` | `0..1` | not specified | Only for components in an Executable ([constr_3642]); `RPortPrototypeProps` only in R-ports ([constr_3359]) | None directly |
 | `RPortPrototypeProps.searchIntention` | Whether the developer intends to search for one instance or for all | `searchForAllInstances`, `searchForSpecificInstance` | `0..1` | not specified | Not binding ([TPS_MANI_01057]) | The real search is configured in the Service Instance Manifest |
-| `FieldSenderComSpec.initValue` (in `PPortPrototype.providedComSpec`) | The value of a field before the service is offered | `ValueSpecification` | `0..1` | not specified | Shall exist if the ComSpec exists ([constr_10152], `IT_BefAraApiGen`) | Can be used to set the field value before the offer ([TPS_MANI_03212]); guide 07 |
+| `FieldSenderComSpec.initValue` (in `PPortPrototype.providedComSpec`) | The value of a field before the service is offered | `ValueSpecification` | `0..1` | not specified | Shall exist if the ComSpec exists ([constr_10152], `IT_BefAraApiGen`) | Can be used to set the field value before the offer ([TPS_MANI_03212]); [guide 07, Section 9.2](07_CommunicationManagement.md#92-the-value-before-the-offer) |
 
 ### 12.3 Executable and RootSwComponentPrototype
 
@@ -2156,7 +2156,7 @@ The following checklist produces the model of this guide. Each step names the el
 | --- | --- | --- | --- | --- | --- | --- |
 | `ServiceInterface.namespace` | Namespace of the generated code, in order | `SymbolProps` with `symbol` (`CIdentifier`) | `*` | not specified | Order is significant ([TPS_MANI_01006]) | C++ namespace of proxies, skeletons and types |
 | `ServiceInterface.majorVersion`, `minorVersion` | Version of the service contract | `PositiveInteger` | `0..1` each | not specified | Semantic versioning ([TPS_MANI_03616]) | Mapped to a version per deployment ([TPS_MANI_03617]) |
-| `ServiceInterface.event` | Events | `VariableDataPrototype` | `*` | not specified | No `initValue` ([constr_1494]) | Event of proxy and skeleton (guide 07) |
+| `ServiceInterface.event` | Events | `VariableDataPrototype` | `*` | not specified | No `initValue` ([constr_1494]) | Event of proxy and skeleton ([guide 07](07_CommunicationManagement.md#7-events-and-triggers)) |
 | `ServiceInterface.field` | Fields | `Field` | `*` | not specified | | Field of proxy and skeleton |
 | `Field.hasGetter`, `hasSetter`, `hasNotifier` | Which accessors exist | `Boolean` | `0..1` each | not specified | All three shall exist, at least one `true` ([constr_1673], [constr_10129], [constr_10130], [constr_10131]) | Which methods and notifications are generated |
 | `ServiceInterface.method` | Methods | `ClientServerOperation` | `*` | not specified | | Method of proxy and skeleton |
@@ -2180,7 +2180,7 @@ The following checklist produces the model of this guide. Each step names the el
 | `namespace` | Namespace of the type | `SymbolProps` | `*` | not specified | Not for `VALUE` ([constr_3443]) | C++ namespace |
 | `headerFile` | Header that declares the type | `String`, for example `cstdint` | `0..1` | not specified | Exclusive with `typeEmitter` ([constr_1743]) | `#include` |
 | `typeEmitter` | Who generates the type | `NameToken`; reserved `TYPE_EMITTER_ARA`, `FUNDAMENTAL_TYPE` | `0..1` | not specified | [TPS_MANI_01176], [TPS_MANI_01177] | `TYPE_EMITTER_ARA`: the `ara` generator generates the type |
-| `swDataDefProps.compuMethod` | Labels of an enumeration or bit field | `CompuMethod` of category `TEXTTABLE` or `BITFIELD_TEXTTABLE` | `0..1` | not specified | [constr_10566] | Enumerators (guide 07) |
+| `swDataDefProps.compuMethod` | Labels of an enumeration or bit field | `CompuMethod` of category `TEXTTABLE` or `BITFIELD_TEXTTABLE` | `0..1` | not specified | [constr_10566] | Enumerators ([guide 07, Section 5.5](07_CommunicationManagement.md#55-data-types)) |
 
 ### 12.6 ApApplicationError and ApApplicationErrorDomain
 
@@ -2206,7 +2206,7 @@ The following checklist produces the model of this guide. Each step names the el
 
 ### 12.8 MachineDesign, EthernetCommunicationConnector and ApApplicationEndpoint
 
-**Purpose:** the design-time description of a Machine and its network connection. **Lives in:** system design. **Configured by:** OEM communication designer or Tier 1 integrator. **Spec:** TPS 6, 7.2.1, 13.1; Tables 6.8, 13.1, 13.37. Guide 08 covers all network attributes.
+**Purpose:** the design-time description of a Machine and its network connection. **Lives in:** system design. **Configured by:** OEM communication designer or Tier 1 integrator. **Spec:** TPS 6, 7.2.1, 13.1; Tables 6.8, 13.1, 13.37. [Guide 08a](08a_NetworkBindings.md) covers all network attributes.
 
 | Element.attribute | Meaning | Type and values | Mult. | Default | Rules | Effect at run time |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -2284,14 +2284,14 @@ The following checklist produces the model of this guide. Each step names the el
 
 ### 12.13 ServiceInterfaceDeployment and Service Instances
 
-**Purpose:** the transport-specific representation of a service interface and its instances. **Lives in:** Service Instance Manifest. **Configured by:** software cluster responsible, finalized by the integrator. **Spec:** TPS 13.2, 13.3; Tables 13.6 to 13.11, 13.28 to 13.30, 13.34, 13.49. Guide 08 covers the SOME/IP and DDS attributes.
+**Purpose:** the transport-specific representation of a service interface and its instances. **Lives in:** Service Instance Manifest. **Configured by:** software cluster responsible, finalized by the integrator. **Spec:** TPS 13.2, 13.3; Tables 13.6 to 13.11, 13.28 to 13.30, 13.34, 13.49. [Guide 08a](08a_NetworkBindings.md) covers the SOME/IP and DDS attributes.
 
 | Element.attribute | Meaning | Type and values | Mult. | Default | Rules | Effect at run time |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ServiceInterfaceDeployment.serviceInterface` | The deployed interface | `ServiceInterface` (ref, `≪atpUriDef≫`) | `0..1` | not specified | All elements deployed, except for DDS ([constr_10029]) | |
 | `ServiceInterfaceDeployment.eventDeployment`, `fieldDeployment`, `methodDeployment` | One deployment per element | `ServiceEventDeployment`, `ServiceFieldDeployment`, `ServiceMethodDeployment` subclasses | `*` each | not specified | Elements of the same interface ([constr_3300], [constr_3301], [constr_3302]) | IDs and transport per element |
-| `ServiceInterfaceDeploymentElement.minimumSendInterval` | Minimum time between two transmissions | `TimeValue` (seconds) | `0..1` | not specified; `0` means no minimum (TPS, Section 13.2) | 0 to 10 s ([constr_10655]) | Rate limit in `ara::com` |
-| `SomeipServiceInterfaceDeployment.serviceInterfaceId`, `serviceInterfaceVersion`, `eventGroup` | SOME/IP service ID, version and event groups | `PositiveInteger`, `SomeipServiceVersion`, `SomeipEventGroup` | `0..1`, `0..1`, `*` | not specified | ID and version shall exist ([constr_10212], [constr_10213]) | Guide 08 |
+| `ServiceInterfaceDeploymentElement.minimumSendInterval` | Minimum time between two transmissions | `TimeValue` (seconds) | `0..1` | `0`, which means no minimum ([SWS_CM_00139]; TPS, Section 13.2) | 0 to 10 s ([constr_10655]) | Rate limit in `ara::com` |
+| `SomeipServiceInterfaceDeployment.serviceInterfaceId`, `serviceInterfaceVersion`, `eventGroup` | SOME/IP service ID, version and event groups | `PositiveInteger`, `SomeipServiceVersion`, `SomeipEventGroup` | `0..1`, `0..1`, `*` | not specified | ID and version shall exist ([constr_10212], [constr_10213]) | [Guide 08a](08a_NetworkBindings.md) |
 | `AdaptivePlatformServiceInstance.serviceInterfaceDeployment` | The deployment the instance uses | `ServiceInterfaceDeployment` (ref) | `0..1` | not specified | | |
 | `AdaptivePlatformServiceInstance.e2eEventProtectionProps`, `e2eMethodProtectionProps`, `secureComConfig` | E2E protection and secure communication | (aggr) | `*` each | not specified | | Guides 08, 14 |
 | `ProvidedSomeipServiceInstance.serviceInstanceId`, `sdServerConfig`, `providedEventGroup` | Instance ID, SD server timing, event groups | `PositiveInteger`, `SomeipSdServerServiceInstanceConfig` (ref), `SomeipProvidedEventGroup` | `0..1`, `0..1`, `*` | not specified | ID and SD config shall exist ([constr_10219], [constr_10218]); ID 0 to 65534 ([constr_1770]); `multicastThreshold` shall exist ([constr_10220]) | Offer on the network |
@@ -3150,7 +3150,7 @@ The following seven files are the complete model of this guide. They are split b
                 <SOMEIP-EVENT-DEPLOYMENT>
                   <SHORT-NAME>Image</SHORT-NAME>
                   <EVENT-REF DEST="VARIABLE-DATA-PROTOTYPE">/HPC/ServiceInterfaces/CameraService/Image</EVENT-REF>
-                  <EVENT-ID>0x8001</EVENT-ID>
+                  <EVENT-ID>1</EVENT-ID>
                   <TRANSPORT-PROTOCOL>TCP</TRANSPORT-PROTOCOL>
                 </SOMEIP-EVENT-DEPLOYMENT>
               </EVENT-DEPLOYMENTS>
@@ -3165,7 +3165,7 @@ The following seven files are the complete model of this guide. They are split b
                   </GET>
                   <NOTIFIER>
                     <SHORT-NAME>Notifier</SHORT-NAME>
-                    <EVENT-ID>0x8002</EVENT-ID>
+                    <EVENT-ID>2</EVENT-ID>
                     <TRANSPORT-PROTOCOL>TCP</TRANSPORT-PROTOCOL>
                   </NOTIFIER>
                 </SOMEIP-FIELD-DEPLOYMENT>
@@ -3462,7 +3462,7 @@ The following table shows where the values of this model are used later in the s
 > - Follow the minimal configuration checklist; most mistakes are missing mandatory references, such as the ResourceGroup of a startup configuration or the service discovery configuration of a service instance.
 > - Many attributes are `0..1` in the class table and made mandatory by a constraint; the tables of this chapter list these constraints.
 > - Defaults exist only where the specifications state them, for example for `reportingBehavior`, `fireAndForget` and `numberOfRestartAttempts`.
-> - The behavior behind the Execution Manifest is explained in the EM guide, the behavior behind the Service Instance Manifest in guides 07 and 08.
+> - The behavior behind the Execution Manifest is explained in the EM guide, the behavior behind the Service Instance Manifest in [guide 07](07_CommunicationManagement.md) and [guide 08a](08a_NetworkBindings.md).
 > - The complete model of `CameraService`, `CameraDriver`, `Fusion`, `HPC` and the two Software Clusters is about 1,000 lines of validated ARXML.
 
 ---
@@ -3478,7 +3478,7 @@ The C++ headers of a service interface are generated before the implementation s
 | Model element | Appears in the code as | Rule |
 | --- | --- | --- |
 | `ServiceInterface` with its `namespace` | Proxy and skeleton classes in that namespace, for example `hpc::camera` | [TPS_MANI_01004], [TPS_MANI_01006] |
-| `event`, `method`, `field` with `hasGetter`, `hasSetter`, `hasNotifier` | Members of proxy and skeleton | Guide 07 |
+| `event`, `method`, `field` with `hasGetter`, `hasSetter`, `hasNotifier` | Members of proxy and skeleton | [Guide 07, Chapter 5](07_CommunicationManagement.md#5-from-service-interface-to-generated-code) |
 | `CppImplementationDataType` with `typeEmitter` `TYPE_EMITTER_ARA` | A generated type definition | [TPS_MANI_01177] |
 | `CppImplementationDataType` with a `headerFile` | An `#include` of an existing declaration, for example `<cstdint>` | [TPS_MANI_01309] |
 | `ApApplicationError` and `ApApplicationErrorDomain` | An enumeration of the errors of the domain, with the short names and codes of the errors | Rationale of [constr_1664], [constr_1665] |
@@ -3646,7 +3646,7 @@ Later, the update of `AdasCluster` to 1.1.0 ([guide 00, Section 6.11](00_Learnin
 | The header generation fails or produces unexpected names | A constraint at `IT_BefAraApiGen` is violated, or a namespace is missing | Fields, data type categories, error domains ([Chapter 6](#6-service-interfaces-and-data-types)) |
 | A process never starts | It references no state of the active Function Group, or it is not mapped to the Machine | `FUNCTION-GROUP-STATE-IREF`s and the `PROCESS-TO-MACHINE-MAPPING` ([Chapter 8](#8-the-execution-manifest)); the [EM guide](04_ExecutionManagement.md#173-troubleshooting-guide) |
 | `InstanceSpecifierMappingIntegrityViolation` at run time | The specifier string does not match the model, or the port has no mapping for this process | The path in the code against the Executable, root prototype and port names; the `PROCESS-REF` of the mapping ([Section 9.3](#93-connecting-a-port-to-a-service-instance)) |
-| A proxy never finds its service | Different deployments, IDs or versions on the two sides, or no machine mapping | Service ID, instance ID, major and minor version, event groups, `SERVICE-INSTANCE-TO-MACHINE-MAPPING` ([Section 9.6](#96-worked-example-cameraservice-between-cameradriver-and-fusion)); guide 08 |
+| A proxy never finds its service | Different deployments, IDs or versions on the two sides, or no machine mapping | Service ID, instance ID, major and minor version, event groups, `SERVICE-INSTANCE-TO-MACHINE-MAPPING` ([Section 9.6](#96-worked-example-cameraservice-between-cameradriver-and-fusion)); [guide 08a](08a_NetworkBindings.md) |
 | UCM rejects a package | Missing version, vendor ID or signature, or a Function Group claimed twice | The `SOFTWARE-CLUSTER` attributes ([Section 10.2](#102-software-cluster-the-uploadable-unit)); guide 13 |
 
 > **Key takeaways**

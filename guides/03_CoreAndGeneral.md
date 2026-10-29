@@ -1245,7 +1245,7 @@ sequenceDiagram
 
     FU->>PX: SetExposureMode(Night)
     PX-->>FU: Future (not ready)
-    PX->>CD: request (local IPC or SOME/IP, guide 08)
+    PX->>CD: request (local IPC or SOME/IP, guide 08a)
     Note over FU: cycle n, is_ready() is false, continue
     CD-->>PX: error ExposureModeNotSupported
     PX->>PX: SetError on the Promise
@@ -1255,7 +1255,7 @@ sequenceDiagram
     FU->>FU: keep Auto, do not ask again
 ```
 
-The following code polls the `Future` once per cycle. The generated proxy API belongs to guide 07; here a stand-in function represents the call.
+The following code polls the `Future` once per cycle. The generated proxy API belongs to [guide 07](07_CommunicationManagement.md#89-worked-example-setexposuremode-from-fusion-to-cameradriver). There, the call returns `ara::core::Future<Output>`, where `Output` holds the out arguments of the method ([guide 07, Section 5.4](07_CommunicationManagement.md#54-how-arguments-are-passed)); here a stand-in function that returns `ara::core::Future<void>` represents the call.
 
 ```cpp
 // Fusion asks for the Night exposure mode at dusk (illustrative).
