@@ -2,15 +2,19 @@
 
 <!-- markdownlint-disable MD013 MD033 -->
 
-> **Source specification:** *Glossary* (`AUTOSAR_FO_TR_Glossary`), AUTOSAR Foundation **R25-11**, and *Explanation of Adaptive Platform Design* (`AUTOSAR_AP_EXP_PlatformDesign`), AUTOSAR Adaptive Platform **R25-11**. Also based on *Explanation of Adaptive Platform Software Architecture* (`AUTOSAR_AP_EXP_SWArchitecture`, Adaptive Platform R25-11).
+> **Source specification:**
 >
-> **Document type:** training material.
+> - *Glossary* (`AUTOSAR_FO_TR_Glossary`), AUTOSAR Foundation **R25-11**
+> - *Explanation of Adaptive Platform Design* (`AUTOSAR_AP_EXP_PlatformDesign`), AUTOSAR Adaptive Platform **R25-11**.
+> - *Explanation of Adaptive Platform Software Architecture* (`AUTOSAR_AP_EXP_SWArchitecture`), AUTOSAR Adaptive Platform **R25-11**.
 >
-> **Author:** Hieu Do Minh/Claude
+> **Document type:** Training Material.
+>
+> **Author:** Hieu Do Minh
 >
 > **Version:** 1.0
 >
-> **Part of the series:** this guide is the entry point of the [AUTOSAR Adaptive Platform Training Guides](../README.md). Next: [01 Adaptive Platform Overview and Architecture](01_PlatformOverview.md).
+> **Part of the series:** This guide is the entry point of the [AUTOSAR Adaptive Platform Training Guides](../README.md). Next: [01 Adaptive Platform Overview and Architecture](01_PlatformOverview.md).
 
 ## About This Guide
 
@@ -23,9 +27,8 @@ Everyone who reads the series, in particular:
 - **Application developers** who write software that runs on the Adaptive Platform.
 - **Integrators** who configure manifests, deploy software and debug ECUs.
 - **Platform developers** who build or extend functional clusters.
-- **Diagnostics and security engineers** who work on one specific area of the platform.
 
-Assumed background: modern C++, plus basic Linux/POSIX knowledge. No prior AUTOSAR knowledge is needed. [Section 4.1](#41-prerequisites) lists the details.
+Assumed background: modern C++, plus basic Linux/POSIX knowledge. No prior AUTOSAR knowledge is needed.
 
 ### What You Will Get From This Guide
 
@@ -33,9 +36,8 @@ After reading this guide you will be able to:
 
 1. Explain in a few sentences what the Adaptive Platform is and how the series covers it.
 2. Find the guide that answers your question, and choose a reading path for your role.
-3. Find an AUTOSAR specification and a requirement inside it.
-4. Describe the `HPC` running example: its network, Function Groups, processes and services, and which guide details each part.
-5. Look up a term or an acronym in the series glossary.
+3. Describe the `HPC` running example: its network, Function Groups, processes and services, and which guide details each part.
+4. Look up a term or an acronym in the series glossary.
 
 ### How to Read This Guide
 
@@ -48,7 +50,7 @@ Read Chapters 1 to 5 once. Chapter 6, the running example, is a reference: skim 
 | **Pitfall** | A common mistake seen in real projects. |
 | **Key takeaways** | A short summary at the end of each chapter. |
 | *illustrative* | A value of the running example that was invented for teaching, such as an IP address or a service ID. |
-| Diagrams | Written in Mermaid. They render natively on GitHub and GitLab ([Section 4.2](#42-setting-up-a-reading-environment)). |
+| Diagrams | Written in Mermaid. They render natively on GitHub and GitLab. |
 
 ### The Running Example
 
@@ -66,26 +68,15 @@ All guides share one invented system: the high-performance ECU `HPC`, which runs
   - [1. Welcome to the Series](#1-welcome-to-the-series)
     - [1.1 The Adaptive Platform in One Page](#11-the-adaptive-platform-in-one-page)
     - [1.2 What the Series Covers and What It Does Not](#12-what-the-series-covers-and-what-it-does-not)
-    - [1.3 The Baseline Release R25-11](#13-the-baseline-release-r25-11)
   - [2. The Guide Catalog](#2-the-guide-catalog)
     - [2.1 All Guides at a Glance](#21-all-guides-at-a-glance)
     - [2.2 How Every Guide Is Built](#22-how-every-guide-is-built)
     - [2.3 Functional Clusters and Their Guides](#23-functional-clusters-and-their-guides)
     - [2.4 Topics Outside the Series](#24-topics-outside-the-series)
-  - [3. Learning Paths](#3-learning-paths)
-    - [3.1 The Full Path](#31-the-full-path)
-    - [3.2 Application Developers](#32-application-developers)
-    - [3.3 Integrators](#33-integrators)
-    - [3.4 Platform Developers](#34-platform-developers)
-    - [3.5 Diagnostics Engineers](#35-diagnostics-engineers)
-    - [3.6 Security Engineers](#36-security-engineers)
-    - [3.7 If You Know AUTOSAR Classic](#37-if-you-know-autosar-classic)
   - [4. Before You Start](#4-before-you-start)
     - [4.1 Prerequisites](#41-prerequisites)
-    - [4.2 Setting Up a Reading Environment](#42-setting-up-a-reading-environment)
     - [4.3 Getting the AUTOSAR Specifications](#43-getting-the-autosar-specifications)
     - [4.4 How AUTOSAR Documents Are Named](#44-how-autosar-documents-are-named)
-    - [4.5 Finding a Requirement in the Specification](#45-finding-a-requirement-in-the-specification)
   - [5. Series Conventions](#5-series-conventions)
     - [5.1 Requirement and Constraint IDs](#51-requirement-and-constraint-ids)
     - [5.2 Three Kinds of Statements](#52-three-kinds-of-statements)
@@ -155,13 +146,17 @@ Two technology trends drive the Adaptive Platform: **Ethernet**, which offers mu
 The following diagram shows these layers. [Guide 01](01_PlatformOverview.md#3-the-architecture-logical-view) explains them in detail.
 
 ```mermaid
-flowchart TB
+block-beta
+columns 1
     APP["Adaptive Applications<br/>(processes, written in C++)"]
     ARA["ARA: the C++ APIs of the functional clusters<br/>(ara::exec, ara::com, ara::log, ...)"]
     FC["Functional clusters<br/>(libraries and daemon processes)"]
     OS["Operating system<br/>(POSIX; applications may use PSE51 only)"]
     MACH["Machine<br/>(physical ECU, virtual machine or container)"]
-    APP --> ARA --> FC --> OS --> MACH
+    APP --> ARA
+    ARA --> FC
+    FC --> OS
+    OS --> MACH
 ```
 
 The Adaptive Platform does not replace the Classic Platform. Both run side by side in the same vehicle and communicate, for example over SOME/IP, which both platforms support (*Platform Design*, Section 3.4). Signal-to-Service translation connects the signal-based Classic world to the service-oriented Adaptive world [EXT-001].
@@ -175,20 +170,6 @@ The series does **not**:
 - replace the specifications. Every normative statement points to a requirement ID, so that you can read the exact text. Where a guide and a specification differ, the specification applies.
 - describe a particular vendor's product or tools. Where implementations differ, a **Note (implementation example)** box shows one typical approach.
 - cover the Classic Platform, except where an Adaptive cluster interacts with it.
-- make a system safe or secure by itself. Using the Adaptive Platform does not imply compliance with ISO 26262 (*Platform Design*, Section 17.1).
-
-### 1.3 The Baseline Release R25-11
-
-All guides are based on **one release: R25-11** of the Adaptive Platform and of the Foundation. AUTOSAR names releases by year and month; recent releases appeared every November (R22-11 to R25-11). Requirement IDs, API signatures and configuration attributes change between releases, so mixing releases leads to examples that do not compile and IDs that cannot be found.
-
-The following changes of the last releases are useful to know when you read older material. They come from the change history of the *Platform Design* explanation. Each guide lists the changes of its own cluster in its appendix *Notable Changes in Recent Releases*.
-
-| Release | Notable change described in *Platform Design* |
-| --- | --- |
-| R22-11 | Firewall added. State Management introduces the *StateMachine* concept. |
-| R23-11 | Raw Data Stream described as its own topic, separate from Communication Management. |
-| R24-11 | Automotive API Gateway added. Health Channels and System Health Management removed from Platform Health Management. |
-| R25-11 | Remote Persistency, Sensor Interfaces and Safe Hardware Acceleration added. State Management, Update and Configuration Management, Diagnostics and Time Synchronization updated. |
 
 > **Key takeaways**
 >
@@ -205,7 +186,7 @@ The following changes of the last releases are useful to know when you read olde
 
 ### 2.1 All Guides at a Glance
 
-Read the guides in the order of their numbers, or follow a learning path from [Chapter 3](#3-learning-paths). Guides that are not yet published are listed with their planned file name.
+Read the guides in the order of their numbers. Guides that are not yet published are listed with their planned file name.
 
 | # | Guide | It answers the question | Main specifications | Status |
 | --- | --- | --- | --- | --- |
@@ -220,7 +201,7 @@ Read the guides in the order of their numbers, or follow a learning path from [C
 | 08a | [Communication Management Part 2: Network Bindings (SOME/IP, Signal-Based, DDS)](08a_NetworkBindings.md) | How do services travel over SOME/IP and DDS, and how do CAN signals become services? | AP SWS Communication Management, AP TPS Manifest, FO PRS SOME/IP, FO PRS SOME/IP Service Discovery, FO PRS DDS | Available |
 | 08b | [Communication Management Part 3: Secure Communication and End-to-End Protection](08b_SecureAndSafeCommunication.md) | How is service communication protected against attackers and against faults? | AP SWS Communication Management, AP TPS Manifest, FO PRS E2E, FO PRS SecOC | Available |
 | 09 | Network Management, Time Synchronization and Raw Data Stream (`09_NM_TimeSync_RawDataStream.md`) | How are networks woken, clocks synchronized and raw sensor data streamed? | AP SWS Network Management, AP SWS Time Synchronization, AP SWS Raw Data Stream | Planned |
-| 10 | Log and Trace (`10_LogAndTrace.md`) | How do I log, and how do I read a DLT trace? | AP SWS Log and Trace, FO PRS Log and Trace Protocol | Planned |
+| 10 | [Log and Trace](10_LogAndTrace.md) | How do I log, and how do I read a DLT trace? | AP SWS Log and Trace, FO PRS Log and Trace Protocol, FO TPS Log And Trace Extract | Available |
 | 11 | Persistency (`11_Persistency.md`) | How do I keep data across power cycles and updates? | AP SWS Persistency | Planned |
 | 12a | Diagnostics Part 1 (`12a_Diagnostics.md`) | How does a diagnostic tester talk to the `HPC`? | AP SWS Diagnostics | Planned |
 | 12b | Diagnostics Part 2 (`12b_Diagnostics.md`) | How are faults detected, stored as DTCs and read out? | AP SWS Diagnostics | Planned |
@@ -230,18 +211,16 @@ Read the guides in the order of their numbers, or follow a learning path from [C
 | 16 | Intrusion Detection System Manager and Firewall (`16_IDSM_Firewall.md`) | How are security events collected, and how is network traffic filtered? | AP SWS IDSM, AP SWS Firewall | Planned |
 | 17 | End-to-End Integration: A Day in the Life of the HPC (`17_EndToEndIntegration.md`) | How do all clusters work together over a whole day? | All of the above | Planned |
 
-The split between guides 12a and 12b is fixed when guide 12a is written. An optional collection of exercises may follow guide 17.
-
 ### 2.2 How Every Guide Is Built
 
 Every cluster guide follows the same pattern, so that you always know where to look:
 
 1. **About This Guide:** audience, learning objectives and the parts of the running example that the guide uses.
 2. **Concept chapters:** what the cluster does and does not do, its vocabulary and its place in the architecture.
-3. **Configuration Overview** (Chapter 4): where the configuration lives and how its elements relate.
-4. **Mechanism chapters:** how the cluster behaves, with rules, requirement IDs, diagrams and worked examples.
-5. **Configuration Reference:** the minimal configuration, every setting with its meaning, values, default and effect, and the complete configuration of the running example.
-6. **API Reference:** the `ara::` C++ interface with usage examples.
+3. **Mechanism chapters:** how the cluster behaves, with rules, requirement IDs, diagrams and worked examples.
+4. **API Reference:** the `ara::` C++ interface with usage examples.
+5. **Configuration Overview** (Chapter 4): where the configuration lives and how its elements relate.
+6. **Configuration Reference:** the minimal configuration, every setting with its meaning, values, default and effect, and the complete configuration of the running example.
 7. **Practice:** reporting, an end-to-end walkthrough, best practices, pitfalls and troubleshooting.
 8. **Summary and Self-Check Quiz**, with answers.
 9. **Appendices:** glossary, cheat sheet, traceability to the specification, notable changes between releases, and references.
@@ -300,7 +279,7 @@ The following table maps each cluster to its guide. The columns come from two ex
 | --- | --- | --- | --- | --- | --- |
 | Execution Management | `ara::exec` | Runtime | Foundation | yes | [04](04_ExecutionManagement.md) |
 | State Management | `ara::sm` | Runtime | Platform Service | yes | 05 |
-| Log and Trace | `ara::log` | Runtime | Foundation | no | 10 |
+| Log and Trace | `ara::log` | Runtime | Foundation | no | [10](10_LogAndTrace.md) |
 | Core | `ara::core` | Runtime | Foundation | no | [03](03_CoreAndGeneral.md) |
 | Operating System Interface | (POSIX PSE51, C++ standard library) | Runtime | Foundation | no | [01](01_PlatformOverview.md#7-the-operating-system-interface) |
 | Communication Management | `ara::com` | Communication | Foundation | yes | [07](07_CommunicationManagement.md), [08a](08a_NetworkBindings.md) |
@@ -346,126 +325,6 @@ The following topics are part of R25-11 but have no guide of their own. [Guide 0
 > - IAM is a framework across clusters, not a single cluster.
 
 ---
-
-## 3. Learning Paths
-
-> **Why this matters:** The full series is long. If you have a specific role, a shorter path gets you productive faster. Each path below lists the guides in reading order and says how deeply to read them.
-
-### 3.1 The Full Path
-
-The full path reads the guides by number. The following diagram shows which guides build on which. An arrow from A to B means "read A before B".
-
-```mermaid
-flowchart LR
-    G00["00 Learning Path"] --> G01["01 Overview"]
-    G01 --> G02["02 Manifests"]
-    G01 --> G03["03 ara::core"]
-    G02 --> G04["04 EM"]
-    G03 --> G04
-    G04 --> G05["05 SM"] --> G06["06 PHM"]
-    G03 --> G07["07 ara::com"] --> G08["08a Bindings, S2S"] --> G08B["08b Protection"]
-    G08 --> G09["09 NM, TSync, RDS"]
-    G03 --> G10["10 Log and Trace"]
-    G03 --> G11["11 Persistency"]
-    G07 --> G12a["12a Diagnostics 1"] --> G12b["12b Diagnostics 2"]
-    G05 --> G13["13 UCM"]
-    G11 --> G13
-    G03 --> G14["14 Crypto"]
-    G07 --> G15["15 IAM"] --> G16["16 IDSM, Firewall"]
-    G06 --> G17["17 End-to-End"]
-    G09 --> G17
-    G12b --> G17
-    G13 --> G17
-    G16 --> G17
-```
-
-In the role paths, **Read** means read the whole guide, **Skim** means read the concept chapters and the key takeaways, and **Optional** means read when you need it.
-
-### 3.2 Application Developers
-
-You write processes that offer and use services, log, store data and report their state.
-
-| Guide | Depth | Why |
-| --- | --- | --- |
-| 00, 01 | Read | Orientation and architecture |
-| [03](03_CoreAndGeneral.md) `ara::core` | Read | Error handling with `Result` and `Future` is used by every API |
-| [07](07_CommunicationManagement.md) `ara::com` | Read | Your main API: proxies, skeletons, events, methods, fields |
-| 04 EM | Read Chapters 1, 2, 5 and 13 | How your process is started and stopped, and `ExecutionClient` |
-| 10 Log and Trace | Read | Logging from day one |
-| 11 Persistency | Read | Keeping data across power cycles |
-| [06](06_PlatformHealthManagement.md#5-supervised-entities-and-checkpoints-in-practice) PHM | Skim | Supervision checkpoints in your code |
-| 02 Manifests | Skim | What the integrator configures for you |
-| 12a, 14, 15 | Optional | When your application provides diagnostic data, uses crypto or needs access rights |
-
-### 3.3 Integrators
-
-You configure manifests, deploy software, bring up ECUs and debug them.
-
-| Guide | Depth | Why |
-| --- | --- | --- |
-| 00, 01 | Read | Orientation and architecture |
-| 02 Manifests | Read | The basis of all configuration |
-| 04 EM, [05](05_StateManagement.md#7-controller-and-agents) SM | Read | Startup, Function Groups and state transitions |
-| [07](07_CommunicationManagement.md#14-configuration-reference-what-to-configure), [08a](08a_NetworkBindings.md) | Read | Service deployment and network bindings |
-| [06](06_PlatformHealthManagement.md#14-configuration-reference-what-to-configure) PHM | Read | Supervision and recovery |
-| 13 UCM | Read | Installation and updates |
-| 16 IDSM and Firewall | Read | Firewall rules and security events in the Machine Manifest |
-| 10, 11, 12a, 12b, 14, 15 | Skim | The configuration chapters of each |
-| 17 End-to-End | Read | How everything fits together |
-
-### 3.4 Platform Developers
-
-You build or extend a functional cluster, or write the project-specific State Management logic.
-
-| Guide | Depth | Why |
-| --- | --- | --- |
-| 00, 01 | Read | Orientation and architecture |
-| [03](03_CoreAndGeneral.md#12-general-rules-for-all-functional-clusters) `ara::core` | Read | Conventions every cluster API follows |
-| 04 EM, [05](05_StateManagement.md) SM, [06](06_PlatformHealthManagement.md) PHM | Read | The lifecycle core that every cluster depends on |
-| The guide of your cluster | Read | Your own area |
-| 02 Manifests | Skim | How your cluster's configuration reaches you |
-| 17 End-to-End | Read | The interactions between clusters |
-
-### 3.5 Diagnostics Engineers
-
-You define and test diagnostic services, DTCs and their data.
-
-| Guide | Depth | Why |
-| --- | --- | --- |
-| 00, 01 | Read | Orientation and architecture |
-| 02 Manifests | Skim | Where the diagnostic configuration lives |
-| [07](07_CommunicationManagement.md) `ara::com` | Skim | Diagnostic interfaces of applications use the same concepts |
-| 12a, 12b Diagnostics | Read | Your main area |
-| [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control) SM | Skim | ECU reset and how State Management carries it out |
-| 13 UCM | Skim | Updates through a diagnostic tester |
-| 10 Log and Trace | Optional | Traces that support diagnostic analysis |
-
-### 3.6 Security Engineers
-
-You design the security concept of an Adaptive ECU: keys, access control, secure communication, intrusion detection and secure updates.
-
-| Guide | Depth | Why |
-| --- | --- | --- |
-| 00, 01 | Read | Orientation and architecture |
-| 04 EM, Chapter 12 | Read | Trusted Platform, launch modes and the integrity security event |
-| 14 Cryptography | Read | Keys, certificates and the crypto API |
-| 15 IAM | Read | Access rights of processes |
-| 16 IDSM and Firewall | Read | Security events and network filtering |
-| [08b Secure and Safe Communication](08b_SecureAndSafeCommunication.md) | Read | TLS, SecOC, IPsec, MACsec, DDS Security and E2E protection of service communication |
-| 13 UCM | Skim | Authenticity of update packages |
-
-### 3.7 If You Know AUTOSAR Classic
-
-Many concepts have a Classic counterpart, but the platform works differently. Applications are processes, not runnables; communication is service-oriented by default; configuration is deployed with the software in manifests and can change through updates; and the platform runs on a POSIX operating system. Read [guide 01](01_PlatformOverview.md#2-why-two-platforms-classic-and-adaptive) first; it compares both platforms. Do not assume that a familiar term means the same thing: look it up in [Appendix A](#appendix-a-series-glossary-and-acronyms).
-
-> **Key takeaways**
->
-> - The full path follows the guide numbers. Guides 00 to 03 are the foundation for everything else.
-> - Each role path picks the guides that matter for that role and says how deeply to read them.
-> - Readers with Classic experience should read guide 01 first and check familiar terms in the glossary.
-
----
-
 ## 4. Before You Start
 
 > **Why this matters:** A few minutes of preparation save hours later: the right background knowledge, a viewer that renders the diagrams, and the specifications at hand to check what a guide says.
@@ -479,16 +338,6 @@ Many concepts have a Classic counterpart, but the platform works differently. Ap
 | Networking | Ethernet, IP, UDP, TCP, multicast | 07, [08a](08a_NetworkBindings.md), 09, 16 |
 | CAN (optional) | Frames, signals, cyclic transmission | [08a](08a_NetworkBindings.md) (Signal-to-Service translation) |
 | Diagnostics (optional) | The idea of UDS services, DIDs and DTCs | 12a, 12b |
-
-### 4.2 Setting Up a Reading Environment
-
-The guides are plain Markdown with Mermaid diagrams [EXT-003].
-
-- **GitHub and GitLab** render the guides, including the diagrams, without any setup.
-- **VS Code:** install the *Markdown Preview Mermaid Support* extension and open the Markdown preview.
-- **Other editors:** use any Markdown viewer with Mermaid support, or paste a diagram into the Mermaid Live Editor at <https://mermaid.live>.
-
-The quiz answers are in collapsible `<details>` blocks. Click a question to show its answer.
 
 ### 4.3 Getting the AUTOSAR Specifications
 
@@ -508,14 +357,6 @@ Every AUTOSAR document has a name of the form `AUTOSAR_<standard>_<type>_<name>`
 | TR | Technical Report | Reports such as the *Glossary* or a release overview. | No |
 
 The guides rely on SWS, TPS and PRS for every normative statement, and on EXP and TR for explanations.
-
-### 4.5 Finding a Requirement in the Specification
-
-To read the exact text behind an ID such as `[SWS_EM_01050]`:
-
-1. Find the document from the prefix: `SWS_EM` is the *Specification of Execution Management*, `TPS_MANI` the *Manifest Specification*, `constr_` a constraint, usually of a TPS.
-2. Open the PDF and search for the ID. Each requirement is a short, numbered block of text.
-3. If you cannot find it, check the change history appendix at the end of the specification. Requirements can be removed or replaced between releases.
 
 > **Key takeaways**
 >
@@ -568,7 +409,7 @@ If the specification is silent or ambiguous on a point, the guide says so explic
 
 - **Code** follows the R25-11 API: names, signatures and headers as in the specification. Examples are short and illustrative. Vendor headers may differ in detail.
 - **Manifests** are AUTOSAR XML (ARXML) files. To keep examples readable, guides often show a *conceptual* view that starts with the comment `# Conceptual view ... NOT real ARXML syntax.` Real ARXML appears only where it follows the R25-11 XML Schema and the Manifest Specification, mainly in guide 02 ([complete configuration of the running example](02_Manifests.md#1216-the-running-example-complete-configuration)).
-- **Diagrams** use Mermaid: sequence diagrams for interactions, state diagrams for states, and flowcharts for structure and decisions.
+- **Diagrams** use Mermaid: sequence diagrams for interactions, state diagrams for states, flowcharts for structure and decisions, and block diagrams for layer stacks.
 
 ### 5.5 Names and Typography
 
@@ -843,7 +684,7 @@ All values in this section are illustrative. The owner guides check them against
 | Diagnostics | UDS over DoIP | DoIP port 13400; `HPC` logical address `0x1010`, tester logical address `0x0E80` | 12a |
 | Network Management | UDP NM on the backbone | See [Section 6.14](#614-time-network-management-and-logging) | 09 |
 | Time synchronization | gPTP (IEEE 802.1AS) on the backbone | `CentralGateway` is the time master | 09 |
-| Logging | DLT to a log client on the network | ECU ID `HPC1` | 10 |
+| Logging | DLT protocol version 2 to a logging client on the network | ECU ID `HPC1`; DLT sink `HpcDltChannel`, log channel `HPCN`, TCP server port 3490 on `HPC` (`BackboneConnector`); non-verbose mode | [10](10_LogAndTrace.md#102-machine-sinks-and-per-port-sinks) |
 
 ### 6.8 Classic ECUs and Signal-to-Service Translation
 
@@ -982,7 +823,7 @@ When a supervision of `Fusion` or `CameraDriver` fails, Platform Health Manageme
 | --- | --- | --- |
 | Time synchronization | Time base `VehicleTime`, synchronized with IEEE 802.1AS. `CentralGateway` is the time master; `HPC` follows it. `CameraDriver` time-stamps every image with `VehicleTime`, so that `Fusion` can align images and radar detections. | 09 |
 | Network Management | Partial network `AdasPn`, with `HPC`, `FrontRadar` and `Cockpit`, controlled through the network handle `AdasPnHandle`. State Management requests it when `ADAS` leaves `Off` and releases it 2 s after `ADAS` has returned to `Off` (afterrun). | [05](05_StateManagement.md#63-network-handle-items-and-afterrun), 09 |
-| Log and Trace | ECU ID `HPC1`. `Fusion`: application ID `FUSN`, contexts `MAIN` and `TRCK`. `CameraDriver`: application ID `CAMD`, contexts `MAIN` and `IMGS`. | 10 |
+| Log and Trace | ECU ID `HPC1` (`DltEcu` `HpcDltEcu`). `Fusion`: application ID `FUSN`, contexts `MAIN` and `TRCK`. `CameraDriver`: application ID `CAMD`, contexts `MAIN` and `IMGS`. `FusionLite`: `FUSL` (`MAIN`). `SmControl`: `SMCT` (`MAIN`). One R-port per context, typed by the `LogAndTraceInterface`s `FusionLog` (`hpc::fusion`), `CameraLog` (`hpc::camera`) and `SmControlLog` (`hpc::smcontrol`): `MainLogPort` and `TrackLogPort` of `FusionSwc`, `MainLogPort` and `ImageLogPort` of `CameraDriverSwc`, `MainLogPort` of `FusionLiteSwc` and `SmControlSwc` (instance specifiers such as `/fusion/Root/MainLogPort`). Modeled messages (application range, bit 31 = 0): `FusionCycleOverrun` `0x00010001` (Warn), `TrackListSummary` `0x00010002` (Debug), trace points `FusionCycleBegin`/`FusionCycleEnd` `0x00010101`/`0x00010102`, `FusionLiteActive` `0x00011001`, `ImageDropped` `0x00020001` (Warn), `ExposureModeChanged` `0x00020002`, `AdasStatusChanged` `0x00030001`. Machine: `LogAndTraceInstantiation` `HpcLogAndTrace` (no session IDs, time base `VehicleTime`) with the DLT sink `HpcDltChannel` and the console sink `HpcConsole`; per-port REMOTE sinks `HpcRemoteInfo` (`info`, for the `MAIN` contexts) and `HpcRemoteWarn` (`warn`, for `TRCK` and `IMGS`). The application IDs of the platform daemons are vendor-specific. | [10](10_LogAndTrace.md#57-worked-example-the-ids-of-hpc), [10, 15.11](10_LogAndTrace.md#1511-the-running-example-complete-configuration) |
 
 ### 6.15 Scenario Index
 
@@ -1000,7 +841,7 @@ Each guide tells one or more stories on the running example. Use this table to f
 | [08a](08a_NetworkBindings.md) | `CameraService` and `AdasStatusService` over SOME/IP and `ObjectListService` over DDS to `Cockpit`; Signal-to-Service translation of the CAN signals |
 | [08b](08b_SecureAndSafeCommunication.md#18-end-to-end-walkthrough-a-protected-drive-cycle) | TLS for `CameraService`; SecOC for `PowerMode`; E2E for `ChassisDynamics`, `SetExposureMode` and `AdasStatus`; DDS liveliness for `ObjectListService`; a forged `PowerMode Off` is discarded |
 | 09 | `AdasPn` woken by State Management; images time-stamped with `VehicleTime`; the radar raw data stream |
-| 10 | Log IDs of `Fusion` and `CameraDriver`; a DLT trace of an `ADAS` transition |
+| [10](10_LogAndTrace.md#18-end-to-end-walkthrough-a-dlt-trace-of-an-adas-transition) | Log IDs of `Fusion` and `CameraDriver`; `FusionCycleOverrun` from model to wire; a DLT trace of the `ADAS` transition from `Normal` to `Degraded` |
 | 11 | `CalibrationKvs`, `Recordings` and `FusionParams`, including the migration on update |
 | 12a | The tester reads `FusionSoftwareVersion`, runs `CalibrateCamera` and requests an ECU reset |
 | 12b | `CameraBlocked` matures into a DTC with a snapshot; the tester reads and clears it |
@@ -1027,7 +868,7 @@ Each guide tells one or more stories on the running example. Use this table to f
 ### 7.1 Summary
 
 1. **The Adaptive Platform** is AUTOSAR's platform for high-performance, service-oriented and updatable ECUs. Applications use only ARA and PSE51 and communicate only through Communication Management.
-2. **The series** has one guide per cluster or topic, all based on release R25-11 and all built the same way. The catalog in [Section 2.1](#21-all-guides-at-a-glance) and the learning paths in [Chapter 3](#3-learning-paths) tell you where to start.
+2. **The series** has one guide per cluster or topic, all based on release R25-11 and all built the same way. The catalog in [Section 2.1](#21-all-guides-at-a-glance) tells you where to start.
 3. **The conventions** separate normative statements (with a requirement ID), explanations (EXP and TR documents) and implementation examples (**Note** boxes). The specification always wins.
 4. **The running example** `HPC` is defined in [Chapter 6](#6-the-running-example-the-hpc-reference-system). Its names never change, and each element names the guide that explains it.
 5. **The series glossary** in [Appendix A](#appendix-a-series-glossary-and-acronyms) defines every term once, for all guides.
@@ -1167,6 +1008,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Alive Supervision | A PHM supervision that counts the reports of a checkpoint in each reference cycle and checks them against an expected number with margins. | [06, 6](06_PlatformHealthManagement.md#6-alive-supervision) |
 | APMC | The M1-based target-configuration model with a definition side and a value side that replaces manifest content step by step. | [02, 11.9](02_Manifests.md#119-looking-ahead-apmc) |
 | Application Design | The design-related part of the model: data types, service interfaces, persistency interfaces and other interfaces that an application uses, independent of any deployment. | [02, 2.3](02_Manifests.md#23-the-kinds-of-manifest) |
+| Application ID | The identifier of one process instance in log and trace messages, defined by `DltApplication.applicationId`. | [10, 5.2](10_LogAndTrace.md#52-application-id) |
 | ARA | The AUTOSAR Runtime for Adaptive Applications: the standard C++ interfaces that the functional clusters provide to applications. | [00, 1.1](#11-the-adaptive-platform-in-one-page), [01, 3.2](01_PlatformOverview.md#32-ara-the-autosar-runtime-for-adaptive-applications) |
 | ARElement | A model element that can be defined stand-alone in a package. | [02, 2.4](02_Manifests.md#24-design-elements-and-uploadable-elements) |
 | ARPackage | A package of the model. It establishes a name space and is an open set: several files may contribute to it. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
@@ -1188,8 +1030,9 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | ComSpec | A qualification of the use of one element of an interface at one port, for example the initial value of a field. | [02, 5.2](02_Manifests.md#52-ports-how-software-talks-to-the-outside) |
 | Configuration class | In the Classic Platform, the time at which a parameter is fixed: pre-compile time, link time or post-build time. | [01, 2.3.4](01_PlatformOverview.md#234-the-price-no-flexibility-after-build) |
 | Constraint | A numbered rule on the meta-model, cited as `[constr_nnnn]`. It must hold from its imposition time on; a model that violates it at that point is invalid. | [00, 5.1](#51-requirement-and-constraint-ids), [02, 2.5](02_Manifests.md#25-constraints-and-imposition-times) |
-| Context ID | The four-character Log and Trace identifier of a cluster's messages, for example `#COR` | [03, 12.5](03_CoreAndGeneral.md#125-logging-and-tracing-conventions) |
+| Context ID | The Log and Trace identifier of a logical group of messages within an application, for example `TRCK` of `Fusion`; platform clusters use reserved four-character IDs such as `#COR` | [03, 12.5](03_CoreAndGeneral.md#125-logging-and-tracing-conventions), [10, 5.3](10_LogAndTrace.md#53-context-id) |
 | Continuation | A callable registered with `Future::then` that runs when the result is ready | [03, 9.5](03_CoreAndGeneral.md#95-continuations-with-then) |
+| Control message | A DLT message with which a logging client controls the logging module, or the module's response. | [10, 12](10_LogAndTrace.md#12-controlling-a-running-ecu-control-messages) |
 | Controller (State Management) | The one StateMachine that starts with State Management, controls `MachineFG` and starts and stops the Agents. | [05, 2.5](05_StateManagement.md#25-controller-and-agent) |
 | Corruption | The corruption of a system resource, such as a stack overflow or a bit flip; non-recoverable | [03, 6.4](03_CoreAndGeneral.md#64-corruptions-and-failed-default-allocations) |
 | CppImplementationDataType | A data type with its C++ binding; its category selects the C++ form. | [02, 6.4](02_Manifests.md#64-data-types) |
@@ -1207,6 +1050,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | E2E Protection | Safety mechanisms that detect corrupted, lost, repeated or delayed data between sender and receiver. An E2E profile defines the exact mechanism. | [08b](08b_SecureAndSafeCommunication.md#10-e2e-profiles-and-the-e2e-header) |
 | E2E State Machine | The function that turns the history of E2E checks into the states VALID, INVALID, INIT or NODATA, using windows and thresholds. | [08b, 11](08b_SecureAndSafeCommunication.md#11-the-e2e-state-machine) |
 | ECU | Electronic Control Unit: an embedded computer with at least one CPU and its peripherals in one housing, connected to vehicle networks, sensors and actuators. | [01, 2.1](01_PlatformOverview.md#21-the-problem-the-classic-platform-solves) |
+| ECU ID | The identifier of the ECU or machine in log and trace messages, defined by `DltEcu.ecuId`. | [10, 5.1](10_LogAndTrace.md#51-ecu-id) |
 | Error | The inability of an assumed-bug-free API function to fulfill its purpose; recoverable; returned in `Result` or `Future` | [03, 6.2](03_CoreAndGeneral.md#62-errors-are-returned-never-thrown) |
 | Error code value | The integer part of an `ErrorCode`, from the enumeration of its domain | [03, 7.1](03_CoreAndGeneral.md#71-errorcode-value-domain-and-support-data) |
 | Error domain | The context of a set of error codes: identifier, name, messages, exception type | [03, 7.3](03_CoreAndGeneral.md#73-errordomain-identity-name-and-message) |
@@ -1267,8 +1111,16 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Language Binding | How a service is presented to the programmer, for example as generated C++ proxy and skeleton classes. | [07, 5](07_CommunicationManagement.md#5-from-service-interface-to-generated-code) |
 | Library-based | A functional cluster whose interface library is linked into the application and communicates with the cluster directly. | [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
 | Local cache | The memory that `Subscribe(maxSampleCount)` reserves in the consumer for the samples of one event or field. | [07, 7.3](07_CommunicationManagement.md#73-receiving-samples) |
-| Log and Trace | The functional cluster that lets applications and clusters send log messages to the network, a console or a file. | 10 |
+| Log and Trace | The functional cluster that lets applications and clusters send log messages to the network, a console or a file. | [10, 1.1](10_LogAndTrace.md#11-what-is-log-and-trace) |
+| Log and Trace Extract | The part of the model that describes the sources (`DltEcu`, `DltApplication`, `DltContext`) and the modeled messages. | [10, 2.6](10_LogAndTrace.md#26-the-log-and-trace-extract) |
+| Log channel | A named output path of the DLT protocol, for example one Ethernet connection. | [10, 2.5](10_LogAndTrace.md#25-sinks-and-log-channels) |
+| Log level | The severity of a log message: Fatal, Error, Warn, Info, Debug or Verbose. | [10, 9.1](10_LogAndTrace.md#91-the-six-levels-and-koff) |
+| Log sink | A destination of log messages: console, file, DLT network channel or ARTI, modeled as `DltLogSink`. | [10, 10](10_LogAndTrace.md#10-output-sinks) |
+| Logger | The `ara::log` object that represents one context of one process; created by `CreateLogger`. | [10, 2.3](10_LogAndTrace.md#23-logger-and-logstream) |
+| Logging backend | The implementation of the LT protocol behind the `ara::log` library, for example a DLT daemon. | [10, 1.4](10_LogAndTrace.md#14-log-and-trace-and-ara) |
+| Logging client | An external tool that receives and stores log messages and can control the ECU. | [10, 2.8](10_LogAndTrace.md#28-logging-client-and-control-messages) |
 | Logical Supervision | A PHM supervision that checks the order of checkpoints against a graph of allowed transitions. | [06, 8](06_PlatformHealthManagement.md#8-logical-supervision) |
+| LogStream | The temporary `ara::log` object that collects the arguments of one non-modeled message. | [10, 7.8](10_LogAndTrace.md#78-keeping-a-logstream-flush-and-scope) |
 | Machine | The environment one Adaptive Platform instance runs on: an ECU, a virtual machine or a container. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process), [02, 7.3](02_Manifests.md#73-the-machine) |
 | Machine Design | The design-time placeholder of an Adaptive Machine in the system, the counterpart of the Classic `EcuInstance`. | [02, 7.2](02_Manifests.md#72-machine-design) |
 | Machine Manifest | The machine-wide configuration. | [04, 4.1](04_ExecutionManagement.md#41-where-the-configuration-lives), [02, 7](02_Manifests.md#7-system-design-machine-design-and-the-machine-manifest) |
@@ -1276,11 +1128,12 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | MachineFG | The mandatory Function Group that controls the machine lifecycle. | [04, 7.3](04_ExecutionManagement.md#73-machinefg-and-machine-states) |
 | Manifest | A piece of AUTOSAR model that configures the platform or the software deployed on it, and that is installed together with that software. | [04, 2.2](04_ExecutionManagement.md#22-manifests), [02, 1.1](02_Manifests.md#11-what-is-a-manifest) |
 | Message Authentication Code | A short value computed with a secret key that proves the integrity and authenticity of data. | 14 |
+| Message ID | The 32-bit identifier of a modeled message on the wire. | [10, 8.5](10_LogAndTrace.md#85-message-ids) |
 | Meta-model | The AUTOSAR vocabulary (M2) in which models (M1) are written; the XML Schema is generated from it. | [02, 2.1](02_Manifests.md#21-meta-levels-meta-model-model-and-xml-schema) |
 | Method | A service element that a consumer calls and the provider executes, possibly returning a result. | [07, 8](07_CommunicationManagement.md#8-methods) |
 | Method Call Processing Mode | How a skeleton executes incoming method calls: `kEvent` (concurrent), `kEventSingleThread` (sequential) or `kPoll` (on request of the provider). | [07, 8.7](07_CommunicationManagement.md#87-method-call-processing-modes) |
 | Minimum Send Interval | The configurable minimum time between two transmissions of one event, trigger, field update, method call, `Get` or `Set`. | [07, 11.4](07_CommunicationManagement.md#114-the-minimum-send-interval) |
-| Modeled message | A log message whose static parts are defined in the model, so that only the dynamic parts are sent ("non-verbose" in DLT). | 10 |
+| Modeled message | A log message whose static parts are defined in the model, so that only the dynamic parts are sent ("non-verbose" in DLT). | [10, 8](10_LogAndTrace.md#8-modeled-messages) |
 | Modelled Process | The manifest description of one way to run an Executable (the meta-class `Process`). | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process) |
 | monitorMode | Trusted-platform mode in which failed checks are logged, but software is still launched. | [04, 12.3](04_ExecutionManagement.md#123-launch-behavior-modes) |
 | Multi-binding | One proxy or skeleton class communicating over several transports or protocols, for example one instance offered over local IPC and SOME/IP. | [07, 13.3](07_CommunicationManagement.md#133-multi-binding) |
@@ -1289,9 +1142,10 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Nested recovery | A new error reported for a StateMachine while its previous recovery is still in progress. | [05, 8.4](05_StateManagement.md#84-nested-recovery) |
 | Network Binding | How a service is represented on a specific transport, for example SOME/IP or DDS: serialization and protocol. | [08a](08a_NetworkBindings.md) |
 | No rollback semantics | A recoverability class: the failed call may have had side effects; invariants hold | [03, 6.6](03_CoreAndGeneral.md#66-recoverability-classes) |
-| Non-modeled message | A log message that is built and sent completely at run time ("verbose" in DLT). | 10 |
+| Non-modeled message | A log message that is built and sent completely at run time ("verbose" in DLT). | [10, 7](10_LogAndTrace.md#7-writing-non-modeled-messages) |
 | Non-reporting Process | A process that does not report its Execution State and is considered *Running* immediately after creation. | [04, 5.4](04_ExecutionManagement.md#54-non-reporting-processes-and-the-companion-pattern) |
 | Non-Standardized Violation | A Violation specific to an implementation; ends with `Abort` or a non-`ara::core` exception | [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
+| Non-verbose mode | The DLT form in which a message carries only a message ID and its variable data. | [10, 11.5](10_LogAndTrace.md#115-non-verbose-payload) |
 | Notifier | The part of a field that notifies subscribers of value changes, like an event. | [07, 9.5](07_CommunicationManagement.md#95-subscribing-to-field-notifications) |
 | Off (state) | The mandatory initial state of every Function Group. No processes run in it. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
 | Operating System Interface | The part of ARA that defines the operating system services available to Adaptive Applications (PSE51 and the C++ standard library), and the requirements on the operating system. | [01, 7](01_PlatformOverview.md#7-the-operating-system-interface) |
@@ -1357,6 +1211,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | ServiceInstanceToPortPrototypeMapping | The element that connects one port, in one process, to one service instance. | [02, 9.3](02_Manifests.md#93-connecting-a-port-to-a-service-instance) |
 | ServiceInterfaceDeployment | The representation of a service interface on one transport, for example its SOME/IP IDs. | [02, 9.1](02_Manifests.md#91-service-interface-deployment) |
 | Session Handling | Counting the Session ID of SOME/IP messages; active for requests, responses and segmented messages. | [08a](08a_NetworkBindings.md) |
+| Session ID | The identifier of one instance of a software component that runs several times. | [10, 5.5](10_LogAndTrace.md#55-session-id) |
 | Setter | The accessor of a field with which a consumer asks the provider to change its value (`Set`). | [07, 9.4](07_CommunicationManagement.md#94-set-and-the-mandatory-sethandler) |
 | Shared state | The object shared by a `Promise` and its `Future` that holds the value or error | [03, 9.1](03_CoreAndGeneral.md#91-future-and-promise-in-plain-words) |
 | Short name | The identifier of a model element within its name space; a C identifier, unique case-insensitively. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
@@ -1382,6 +1237,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | StateMachine (State Management) | A configurable state machine of State Management that covers standard cases with little code. A project-specific application requests its transitions. | [05, 2.2](05_StateManagement.md#22-statemachine-statemachine-state-and-initial-state) |
 | StateMachine State | A state of a State Management StateMachine (a `ModeDeclaration`); entering it executes its ActionList. Not the same as a Function Group State. | [05, 2.2](05_StateManagement.md#22-statemachine-statemachine-state-and-initial-state) |
 | Static Service Connection | SOME/IP communication with pre-configured endpoints instead of service discovery. | [08a](08a_NetworkBindings.md) |
+| Storage header | The header that a logging client adds in front of each stored DLT message. | [10, 11.9](10_LogAndTrace.md#119-storing-messages-in-files-the-storage-header) |
 | strictMode | Trusted-platform mode in which software that fails a check is never launched. | [04, 12.3](04_ExecutionManagement.md#123-launch-behavior-modes) |
 | Subscription state | The state of a subscription: `kSubscribed`, `kNotSubscribed` or `kSubscriptionPending`. | [07, 7.2](07_CommunicationManagement.md#72-subscribing-to-an-event) |
 | Supervised Entity | A whole or a part of a software component type that is supervised; a collection of checkpoints. | [06, 2.1](06_PlatformHealthManagement.md#21-supervised-entity-checkpoint-and-supervised-entity-instance) |
@@ -1394,8 +1250,11 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Task (OS) | The smallest schedulable unit managed by the operating system; a thread in POSIX terms. | [01, 7.10](01_PlatformOverview.md#710-os-tracing-with-arti) |
 | Termination handler | The callback that `ExecutionClient` invokes, in a background thread, when `SIGTERM` arrives. | [04, 5.5](04_ExecutionManagement.md#55-terminating-a-process) |
 | Thread-safe | Callable concurrently on the same object by several threads without synchronization by the caller | [03, 12.6](03_CoreAndGeneral.md#126-thread-safety) |
+| Threshold | The minimum log level that a logger lets through. | [10, 2.1](10_LogAndTrace.md#21-log-message-log-level-and-threshold) |
 | Time Base | A synchronized time, such as `VehicleTime`, that Time Synchronization offers to applications. | 09 |
 | Timing protection | In the Classic OS, the run-time enforcement of statically configured execution budgets, lock budgets and minimum inter-arrival times. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
+| Trace status | The on/off switch for trace messages of a context, controlled by control messages. | [10, 9.5](10_LogAndTrace.md#95-trace-status) |
+| Trace switch | The compile-time routing of a modeled message to the logger, ARTI, both or nowhere, configured by `TraceSwitchConfig`. | [10, 14.3](10_LogAndTrace.md#143-the-trace-switch) |
 | TransitionRequestTable | The rules of a StateMachine that map a requested value and the current StateMachine State to the next StateMachine State. | [05, 2.4](05_StateManagement.md#24-transitionrequesttable-and-errorrecoverytable) |
 | Transport fault condition | A transport-related fault reported to a handler: sample rejected, deadline missed or sample lost. | [07, 11.5](07_CommunicationManagement.md#115-transport-fault-conditions) |
 | Trigger | A service element like an event, but without data. | [07, 7.7](07_CommunicationManagement.md#77-triggers) |
@@ -1414,6 +1273,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Vehicle State Manager | An OEM-specific application that controls the vehicle-level state and interacts with V-UCM during updates. | 13 |
 | Vehicle Update and Configuration Management | The functional cluster that coordinates software updates across all ECUs of a vehicle. | [00, 2.4](#24-topics-outside-the-series), 13 |
 | Vendor-specific error | An error that an implementation returns in addition to the specified ones, in a vendor-specific domain | [03, 7.6](03_CoreAndGeneral.md#76-vendor-specific-errors) |
+| Verbose mode | The DLT form in which a message carries type information, and optionally names and units, for each argument. | [10, 11.6](10_LogAndTrace.md#116-verbose-payload) |
 | Violation | A broken API contract, for example two `ExecutionClient` objects. It is logged, and the offending process is terminated. | [04, 10.1](04_ExecutionManagement.md#101-errors-and-violations), [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
 | Violation message | The standardized fatal DLT message of a Standardized Violation | [03, 15.3](03_CoreAndGeneral.md#153-violation-messages) |
 | Watchdog | A hardware or software timer that resets the system if it is not triggered in time. PHM triggers it. | [06, 13](06_PlatformHealthManagement.md#13-the-hardware-watchdog-and-critical-failures) |
@@ -1476,7 +1336,7 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 | Security events | EM integrity check failed, IAM access denied, firewall packet dropped → IdsM |
 | Supervision | `Fusion` (`FusionCycle`): 50 ms cycle, checkpoints `CycleStart`, `InputsRead`, `ObjectsPublished`, `CycleEnd`, alive, deadline and logical supervision; `CameraDriver` (`CameraImageLoop`): `ImageCaptured`, alive supervision; `StateManager` (`StateManagerHeartbeat`): `MainLoop`, alive supervision; recovery notification `AdasRecovery` to `StateManager` |
 | Time and NM | Time base `VehicleTime` (gPTP, master `CentralGateway`); partial network `AdasPn` |
-| Log IDs | `Fusion`: `FUSN` (`MAIN`, `TRCK`); `CameraDriver`: `CAMD` (`MAIN`, `IMGS`) |
+| Log IDs | ECU `HPC1`; `Fusion`: `FUSN` (`MAIN`, `TRCK`); `CameraDriver`: `CAMD` (`MAIN`, `IMGS`); `FusionLite`: `FUSL` (`MAIN`); `SmControl`: `SMCT` (`MAIN`); DLT over TCP port 3490, log channel `HPCN` |
 
 ---
 
