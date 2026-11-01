@@ -75,8 +75,8 @@ All guides share one invented system: the high-performance ECU `HPC`, which runs
     - [2.4 Topics Outside the Series](#24-topics-outside-the-series)
   - [4. Before You Start](#4-before-you-start)
     - [4.1 Prerequisites](#41-prerequisites)
-    - [4.3 Getting the AUTOSAR Specifications](#43-getting-the-autosar-specifications)
-    - [4.4 How AUTOSAR Documents Are Named](#44-how-autosar-documents-are-named)
+    - [4.2 Getting the AUTOSAR Specifications](#42-getting-the-autosar-specifications)
+    - [4.3 How AUTOSAR Documents Are Named](#43-how-autosar-documents-are-named)
   - [5. Series Conventions](#5-series-conventions)
     - [5.1 Requirement and Constraint IDs](#51-requirement-and-constraint-ids)
     - [5.2 Three Kinds of Statements](#52-three-kinds-of-statements)
@@ -219,7 +219,7 @@ Every cluster guide follows the same pattern, so that you always know where to l
 2. **Concept chapters:** what the cluster does and does not do, its vocabulary and its place in the architecture.
 3. **Mechanism chapters:** how the cluster behaves, with rules, requirement IDs, diagrams and worked examples.
 4. **API Reference:** the `ara::` C++ interface with usage examples.
-5. **Configuration Overview** (Chapter 4): where the configuration lives and how its elements relate.
+5. **Configuration Overview:** where the configuration lives and how its elements relate.
 6. **Configuration Reference:** the minimal configuration, every setting with its meaning, values, default and effect, and the complete configuration of the running example.
 7. **Practice:** reporting, an end-to-end walkthrough, best practices, pitfalls and troubleshooting.
 8. **Summary and Self-Check Quiz**, with answers.
@@ -339,11 +339,11 @@ The following topics are part of R25-11 but have no guide of their own. [Guide 0
 | CAN (optional) | Frames, signals, cyclic transmission | [08a](08a_NetworkBindings.md) (Signal-to-Service translation) |
 | Diagnostics (optional) | The idea of UDS services, DIDs and DTCs | 12a, 12b |
 
-### 4.3 Getting the AUTOSAR Specifications
+### 4.2 Getting the AUTOSAR Specifications
 
 The guides cite the specifications but do not contain them. You can download them from <https://www.autosar.org/standards> [EXT-002]. Choose **Adaptive Platform** and **Foundation**, release **R25-11**. The files are provided for information; read the disclaimer and terms of use in each file [EXT-001].
 
-### 4.4 How AUTOSAR Documents Are Named
+### 4.3 How AUTOSAR Documents Are Named
 
 Every AUTOSAR document has a name of the form `AUTOSAR_<standard>_<type>_<name>`, for example `AUTOSAR_AP_SWS_ExecutionManagement`. The *standard* is `AP` (Adaptive Platform), `CP` (Classic Platform) or `FO` (Foundation, the artifacts common to both platforms). The *type* tells you what kind of document it is:
 
@@ -401,7 +401,6 @@ If the specification is silent or ambiguous on a point, the guide says so explic
 | --- | --- |
 | `> **Why this matters:**` | The first lines of every chapter: why you should read it. |
 | `> **Key takeaways**` | The last lines of every chapter: three to six points to remember. |
-| **In plain words** / **Formally** | A concept is first explained in everyday language, then defined precisely. |
 | **Pitfall** | A common mistake, with its cause. |
 | **Note (implementation example)** | Not mandated by AUTOSAR; one typical way to do it. |
 
@@ -438,19 +437,9 @@ A guide does not repeat what another guide explains. It gives a two- or three-li
 
 ### 6.1 Purpose and Rules
 
-**In plain words:** `HPC` is a fictional high-performance ECU that runs a camera- and radar-based ADAS feature. It is small enough to keep in your head, but it touches every functional cluster of the series. It is not a real product.
+`HPC` is a fictional high-performance ECU that runs a camera- and radar-based ADAS feature. It is small enough to keep in your head, but it touches every functional cluster of the series. It is not a real product. The Function Groups, the processes, their states and their Execution Dependencies were introduced by the [EM guide](04_ExecutionManagement.md#the-running-example).
 
-The running example follows five rules:
-
-1. **Names never change.** Once an element is defined here, no guide renames or contradicts it. Guides only add detail.
-2. **New elements start here.** If a guide needs a new element, for example a new key or DTC, it is first added to this chapter.
-3. **Owner guides hold the detail.** Each element names its owner guide. This chapter gives only what other guides need to refer to it.
-4. **Illustrative values are marked.** IP addresses, ports, service IDs, CAN IDs, diagnostic IDs and similar values are invented for teaching. They are plausible, but they do not come from a real vehicle.
-5. **Only `HPC` is detailed.** All other nodes of the vehicle are black boxes. Only their behavior on the network matters.
-
-The Function Groups, the processes, their states and their Execution Dependencies were introduced by the [EM guide](04_ExecutionManagement.md#the-running-example). This chapter keeps them unchanged and adds everything else.
-
-**The example as a model.** Guide 02 writes a part of the example as real ARXML ([Section 12.16](02_Manifests.md#1216-the-running-example-complete-configuration)). All its model elements live in the top-level package `/HPC`, in sub-packages named after the recommended package of each element kind, for example `/HPC/ServiceInterfaces`, `/HPC/Executables` and `/HPC/Processes`. Standardized data types, such as `uint8_t`, are taken from the package `/AUTOSAR/StdTypes` that AUTOSAR publishes. Guide 02 owns this package structure.
+Guide [Manifests](02_Manifests.md) writes a part of the example as real ARXML ([Section 12.16](02_Manifests.md#1216-the-running-example-complete-configuration)). All its model elements live in the top-level package `/HPC`, in sub-packages named after the recommended package of each element kind, for example `/HPC/ServiceInterfaces`, `/HPC/Executables` and `/HPC/Processes`. Standardized data types, such as `uint8_t`, are taken from the package `/AUTOSAR/StdTypes` that AUTOSAR publishes. Guide 02 owns this package structure.
 
 > **Note:** *HPC* is also the general AUTOSAR abbreviation for a *high performance computer*. In the series, `HPC` in code font always means the machine of the running example.
 
@@ -533,7 +522,7 @@ Each Software Cluster carries the ID of its vendor and is signed by that vendor:
 - **`MachineFG`** controls the machine lifecycle. States: `Off`, `Startup`, `Driving`, `Shutdown`, `Restart` and `Verify`. `Driving` is project-specific; the others are mandatory.
 - **`ADAS`** controls the ADAS feature. States: `Off`, `Normal`, `Degraded` and `Verify`. The *Manifest Specification* requires a `Verify` state in every Function Group ([constr_10023]). State Management switches `ADAS` to `Verify` while an update of `AdasCluster` is activated; guide 13 decides which processes run in it.
 
-The following diagrams show the main transitions. EM performs every transition; it initiates only `Off` → `Startup` itself. All other transitions are requested by State Management.
+The following diagrams show the main transitions. EM performs every transition; it initiates only `Off` → `Startup` of `MachineFG` itself. All other transitions are requested by State Management.
 
 ```mermaid
 stateDiagram-v2
