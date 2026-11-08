@@ -29,9 +29,9 @@ Start with guide 00. It suggests shorter reading paths for specific roles, holds
 | 08a | [Communication Management Part 2: Network Bindings (SOME/IP, Signal-Based, DDS)](guides/08a_NetworkBindings.md) | In review |
 | 08b | [Communication Management Part 3: Secure Communication and End-to-End Protection](guides/08b_SecureAndSafeCommunication.md) | In review |
 | 09 | Network Management, Time Synchronization and Raw Data Stream | Planned |
-| 10 | Log and Trace | Planned |
-| 11 | Persistency | Planned |
-| 12a | Diagnostics Part 1 | Planned |
+| 10 | [Log and Trace](guides/10_LogAndTrace.md) | In review |
+| 11 | [Persistency](guides/11_Persistency.md) | In review |
+| 12a | [Diagnostics Part 1](guides/12a_Diagnostics.md) | In review |
 | 12b | Diagnostics Part 2 | Planned |
 | 13 | Update and Configuration Management | Planned |
 | 14 | Cryptography | Planned |

@@ -254,7 +254,7 @@ The guide uses these elements of the example. The last two rows were added for t
 | --- | --- |
 | Run as a daemon or provide a service | Nobody: Core is a library in each process. It has no service interfaces (SWS Core, Chapter 9) and no interfaces to other clusters (Chapter 5). |
 | Read configuration from a manifest | Core has none (SWS Core, Chapter 10). The model elements that shape `ara::core` code are configured for other purposes ([Chapter 4](#4-configuration-overview)). |
-| Provide a logging API | Log and Trace (`ara::log`, guide 10). Core only defines the context IDs and message ID ranges of all clusters ([Section 12.5](#125-logging-and-tracing-conventions)). |
+| Provide a logging API | Log and Trace (`ara::log`, [guide 10](10_LogAndTrace.md)). Core only defines the context IDs and message ID ranges of all clusters ([Section 12.5](#125-logging-and-tracing-conventions)). |
 | Restart a process after an abort | Execution Management detects the Abnormal Termination; State Management decides what to do ([EM guide, Section 10.3](04_ExecutionManagement.md#103-undefined-function-group-state)). |
 | Define the API of a single cluster | Each cluster's own specification and guide. |
 
@@ -1765,7 +1765,7 @@ The library of each cluster inside an application process logs with its own stan
 | per | `#PER` | `0x8000'8000` to `0x8000'8fff` |
 | phm | `#PHM` | `0x8000'9000` to `0x8000'9fff` |
 
-[Appendix B](#appendix-b-quick-reference-cheat-sheet) has the full table. The message IDs of Core's own messages lie in its range ([Section 15.2](#152-log-messages)). How logging works is the subject of guide 10.
+[Appendix B](#appendix-b-quick-reference-cheat-sheet) has the full table. The message IDs of Core's own messages lie in its range ([Section 15.2](#152-log-messages)). How logging works is the subject of [guide 10](10_LogAndTrace.md).
 
 > **Note:** One entry of the table does not follow the four-character rule: Safe Hardware Acceleration has the context ID `#SHWA`, five characters ([SWS_CORE_90024]). The table has the status DRAFT; check the final value in your stack.
 

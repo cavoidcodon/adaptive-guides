@@ -202,8 +202,8 @@ Read the guides in the order of their numbers. Guides that are not yet published
 | 08b | [Communication Management Part 3: Secure Communication and End-to-End Protection](08b_SecureAndSafeCommunication.md) | How is service communication protected against attackers and against faults? | AP SWS Communication Management, AP TPS Manifest, FO PRS E2E, FO PRS SecOC | Available |
 | 09 | Network Management, Time Synchronization and Raw Data Stream (`09_NM_TimeSync_RawDataStream.md`) | How are networks woken, clocks synchronized and raw sensor data streamed? | AP SWS Network Management, AP SWS Time Synchronization, AP SWS Raw Data Stream | Planned |
 | 10 | [Log and Trace](10_LogAndTrace.md) | How do I log, and how do I read a DLT trace? | AP SWS Log and Trace, FO PRS Log and Trace Protocol, FO TPS Log And Trace Extract | Available |
-| 11 | Persistency (`11_Persistency.md`) | How do I keep data across power cycles and updates? | AP SWS Persistency | Planned |
-| 12a | Diagnostics Part 1 (`12a_Diagnostics.md`) | How does a diagnostic tester talk to the `HPC`? | AP SWS Diagnostics | Planned |
+| 11 | [Persistency](11_Persistency.md) | How do I keep data across power cycles and updates? | AP SWS Persistency | Available |
+| 12a | [Diagnostics Part 1](12a_Diagnostics.md) | How does a diagnostic tester talk to the `HPC`? | AP SWS Diagnostics, CP TPS Diagnostic Extract Template | Available |
 | 12b | Diagnostics Part 2 (`12b_Diagnostics.md`) | How are faults detected, stored as DTCs and read out? | AP SWS Diagnostics | Planned |
 | 13 | Update and Configuration Management (`13_UpdateAndConfigManagement.md`) | How is software installed, updated and rolled back? | AP SWS Update and Configuration Management | Planned |
 | 14 | Cryptography (`14_Cryptography.md`) | How do I use keys, certificates and crypto primitives safely? | AP SWS Cryptography | Planned |
@@ -728,18 +728,37 @@ On the Ethernet side, the PDUs use the **Signal-Based SOME/IP** binding with the
 | `Recordings` | File Storage | `Storage` | Recorded object lists, one file per recording | Limited by a quota; the oldest recording is deleted first | 11 |
 | `FusionParams` | Key-Value Storage | `Fusion` | Key `TrackerTuning`: tuning parameters that `Fusion` learns while driving | Migrated by the update to `AdasCluster` 1.1.0, which changes the data type of `TrackerTuning` | 11, 13 |
 
+**Ports and interfaces.** Each storage is reached through an R-port of the software component of its process: `CalibrationKvsPort` and `RecordingsPort` in `StorageSwc` (instance specifiers `/storage/Root/CalibrationKvsPort` and `/storage/Root/RecordingsPort`), and `FusionParamsPort` in `FusionSwc` (`/fusion/Root/FusionParamsPort`). The ports are typed by the persistency interfaces `CalibrationKvsInterface`, `RecordingsInterface` and `FusionParamsInterface`, all with the access mode `readWrite`. The values of `CalibrationKvs` have the type `CalibrationRecord` of `CalibrationDataService`; their initial values `CameraExtrinsicsDefault` and `RadarAlignmentDefault` mean "not calibrated" (an empty value list).
+
+**`TrackerTuning` in two versions.** `fusion` 1.0.0 stores `hpc::fusion::TrackerTuningV1` (`gateDistance` as `float` in metres, `maxCoastCycles` as `std::uint8_t`). `fusion` 1.1.0 uses `hpc::fusion::TrackerTuningV2` (`gateDistance`, `maxCoastCycles` as `std::uint16_t`, and the new `minConfidence` as `float`), raises the contract version of `FusionParamsInterface` from 1.0.0 to 1.1.0, and declares the old type as the previous data type. When `Fusion` 1.1.0 opens `FusionParams` for the first time after the update, its update callback reports the old contract version; `Fusion` then converts the stored value and removes the backup ([guide 11, Section 12.12](11_Persistency.md#1212-worked-example-fusionparams-and-the-update-to-adascluster-110)).
+
+**Target configuration** (illustrative values; [guide 11, Section 14.13](11_Persistency.md#1413-the-running-example-complete-configuration) has the details):
+
+| Storage | Version | Update strategy | Minimum / maximum size | Integrity and security |
+| --- | --- | --- | --- | --- |
+| `CalibrationKvs` | 1.0.0 | keep existing | 16 KiB / 64 KiB | 2 out of 3 copies for the whole storage, in two locations; MAC `MAC/CMAC/AES-128` with the key slot `CalibrationMacKeySlot`, which holds `CalibrationMacKey` |
+| `Recordings` | 1.0.0 | keep existing | 64 MiB / 256 MiB, at most 64 files | none: recordings can be made again |
+| `FusionParams` | 1.0.0, 1.1.0 in `AdasCluster` 1.1.0 | keep existing | 4 KiB / 16 KiB | CRC `CRC_32P4` (32 bits) per key-value pair |
+
+`Storage` syncs `CalibrationKvs` after every accepted `SetCalibration` and answers `CalibrationNotFound` when a key cannot be read or authenticated. It syncs a recording every 10 s and when the recording ends, and it deletes the oldest recording when the quota or the file limit is reached.
+
 ### 6.10 Diagnostics
 
 | Element | Value (illustrative) | Provider on `HPC` | Owner guides |
 | --- | --- | --- | --- |
-| Diagnostic address | DoIP logical address `0x1010`, one for the whole machine: both Software Clusters share one diagnostic configuration | Diagnostic Management | 12a |
-| DID `0x0101` `FusionSoftwareVersion` | Read with the UDS service ReadDataByIdentifier | `Fusion` | 12a |
-| Routine `0x0201` `CalibrateCamera` | Started with the UDS service RoutineControl. Measures the camera position and stores it with `SetCalibration`. | `CameraDriver` | 12a |
-| ECU reset | The UDS service ECUReset (`0x11`). Diagnostic Management calls `ara::diag::EcuResetRequest`, which `SmControl` implements; `SmControl` requests `Reset` from `HpcController`, whose `Restart` state requests `MachineFG.Restart`. Guide 12a shows the Diagnostic Management side. | Diagnostic Management, `SmControl`, `StateManager` | [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control), 12a |
+| Diagnostic address | DoIP logical address `0x1010`, one for the whole machine: both Software Clusters share one diagnostic configuration (`DiagnosticContributionSet` `HpcDiagnostics`); functional address `0xE400` | Diagnostic Management | [12a](12a_Diagnostics.md#23-diagnostic-server-instances-and-software-clusters) |
+| DoIP | Protocol version 3 (ISO 13400-2:2019); at most 2 tester connections and 2 Diagnostic Conversations; tester connection `WorkshopTesters` with source addresses `0x0E00` to `0x0EFF`, priority 10; EID from the MAC address; no TLS. `SmControl` provides the DoIP power mode. | Diagnostic Management, `SmControl` | [12a](12a_Diagnostics.md#59-worked-example-diagnostictester-connects-to-hpc) |
+| Sessions | `DefaultSession` (`0x01`) and `ExtendedSession` (`0x03`); P2 50 ms, P2* 5000 ms, S3 5000 ms | Diagnostic Management | [12a](12a_Diagnostics.md#81-diagnosticsessioncontrol-and-the-s3-timer) |
+| Security level `Level1` | SecurityAccess with RequestSeed `0x01` and SendKey `0x02`; 4-byte seed and key; 3 failed attempts, then 10 s delay | `SmControl` (port `SecurityLevelPort`) | [12a](12a_Diagnostics.md#84-worked-example-unlocking-hpc-for-calibration), 14 |
+| DID `0x0101` `FusionSoftwareVersion` | Read with the UDS service ReadDataByIdentifier in both sessions without security; 8-byte ASCII text; typed interface `FusionSwVersionDid`, P-port `SwVersionDidPort` of `FusionSwc` | `Fusion` | [12a](12a_Diagnostics.md#107-worked-example-fusionsoftwareversion) |
+| DID `0xF190` VIN | Vehicle identification number (17 bytes), also used by DoIP vehicle identification | `SmControl` (port `VinDidPort`) | [12a](12a_Diagnostics.md#105-the-vin-did) |
+| Routine `0x0201` `CalibrateCamera` | Started with the UDS service RoutineControl in the extended session at `Level1`; start and request results; about 3 s. Measures the camera position and stores it with `SetCalibration`. Typed interface `CalibrateCameraRoutine`, P-port `CalibrateCameraPort` of `CameraDriverSwc`. | `CameraDriver` | [12a](12a_Diagnostics.md#114-worked-example-calibratecamera) |
+| Routine `0x0202` `DegradeAdas` | Extended session, `Level1`, start only; requests `Degrade` (10) from `AdasAgent` | `SmControl` (port `DegradeAdasPort`) | [12a](12a_Diagnostics.md#127-worked-example-degradeadas), [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control) |
+| ECU reset | The UDS service ECUReset (`0x11`), hardReset and softReset, extended session and `Level1`, positive response before the reset. Diagnostic Management calls `ara::diag::EcuResetRequest`, which `SmControl` implements on `EcuResetPort`; `SmControl` requests `Reset` from `HpcController`, whose `Restart` state requests `MachineFG.Restart`. | Diagnostic Management, `SmControl`, `StateManager` | [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control), [12a](12a_Diagnostics.md#126-worked-example-ecu-reset-through-smcontrol) |
 | Diagnostic event `CameraBlocked` | Reported by the diagnostic monitor in `CameraDriver` when the camera image stays dark or frozen | `CameraDriver` | 12b |
 | DTC `0x9A1011` | Stored when `CameraBlocked` fails; a snapshot record holds `VehicleSpeed` | Diagnostic Management | 12b |
 
-> **Pitfall:** `Fusion` runs only in `ADAS.Normal`. When `ADAS` is `Off` or `Degraded`, nobody provides `FusionSoftwareVersion`. Guide 12a shows how Diagnostic Management answers in that case.
+> **Pitfall:** `Fusion` runs only in `ADAS.Normal`. When `ADAS` is `Off` or `Degraded`, nobody provides `FusionSoftwareVersion`, and Diagnostic Management answers with the NRC `0x94` ([guide 12a, Section 10.7](12a_Diagnostics.md#107-worked-example-fusionsoftwareversion)).
 
 ### 6.11 Software Updates
 
@@ -764,7 +783,7 @@ The update follows the three phases of UCM: preparation (transfer and processing
 | `HpcDeviceCert`, `HpcDeviceKey` | X.509 certificate and private key of `HPC` | Communication Management | TLS for the SOME/IP communication of `CameraService` with `Cockpit` and `Fusion` (`CameraTlsServer`; `HpcDeviceCert` is issued under `OemRootCa`) | [08b](08b_SecureAndSafeCommunication.md#66-worked-example-cameraservice-secured-with-hpcdevicecert), 14 |
 | `VehicleModeSecOcKey` | Symmetric AES-128 key, shared with `CentralGateway` | Communication Management (translation in `SmControl`) | SecOC of `VehicleModeSecured` | [08b](08b_SecureAndSafeCommunication.md#710-worked-example-powermode-authenticated-by-centralgateway), 14 |
 | `PackageVerificationKey` | Public key | UCM | Verifies the signature of Software Packages | 13, 14 |
-| `CalibrationMacKey` | Symmetric key | `Storage` | MAC over `CalibrationKvs` | 11, 14 |
+| `CalibrationMacKey` | Symmetric key, in the key slot `CalibrationMacKeySlot` | `Storage` (through Persistency) | MAC over `CalibrationKvs` | 11, 14 |
 | `PlatformVendorCert`, `AdasSupplierCert` | X.509 certificates (ECC) of the vendors of `HpcPlatformCore` and `AdasCluster`, issued under `OemRootCa` | UCM | Vendor signature of each Software Cluster | [02](02_Manifests.md#104-worked-example-adascluster-and-hpcplatformcore), 13, 14 |
 
 **Freshness values.** The OEM delivers the Freshness Value Manager plug-in **`HpcFreshnessManager`** for SecOC on `HPC`; it keeps the freshness counter of `VehicleModeSecured` synchronized with `CentralGateway` ([guide 08b, Section 7.8](08b_SecureAndSafeCommunication.md#78-the-freshness-value-manager-plug-in)). Service discovery, IPsec, MACsec and DDS Security are not used in `HPC`.
@@ -831,8 +850,8 @@ Each guide tells one or more stories on the running example. Use this table to f
 | [08b](08b_SecureAndSafeCommunication.md#18-end-to-end-walkthrough-a-protected-drive-cycle) | TLS for `CameraService`; SecOC for `PowerMode`; E2E for `ChassisDynamics`, `SetExposureMode` and `AdasStatus`; DDS liveliness for `ObjectListService`; a forged `PowerMode Off` is discarded |
 | 09 | `AdasPn` woken by State Management; images time-stamped with `VehicleTime`; the radar raw data stream |
 | [10](10_LogAndTrace.md#18-end-to-end-walkthrough-a-dlt-trace-of-an-adas-transition) | Log IDs of `Fusion` and `CameraDriver`; `FusionCycleOverrun` from model to wire; a DLT trace of the `ADAS` transition from `Normal` to `Degraded` |
-| 11 | `CalibrationKvs`, `Recordings` and `FusionParams`, including the migration on update |
-| 12a | The tester reads `FusionSoftwareVersion`, runs `CalibrateCamera` and requests an ECU reset |
+| [11](11_Persistency.md) | `CalibrationKvs`, `Recordings` and `FusionParams`, including the migration on update |
+| [12a](12a_Diagnostics.md#17-end-to-end-walkthrough-a-workshop-visit) | The tester reads `FusionSoftwareVersion`, runs `CalibrateCamera` and requests an ECU reset |
 | 12b | `CameraBlocked` matures into a DTC with a snapshot; the tester reads and clears it |
 | 13 | The update of `AdasCluster` from 1.0.0 to 1.1.0, with activation through `Verify` and a rollback |
 | 14 | `HpcDeviceCert` for TLS, `PackageVerificationKey` for updates, `CalibrationMacKey` for the MAC |
@@ -983,6 +1002,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | AbortHandler | A function `void() noexcept` that `ara::core::Abort` calls, in reverse order of installation, before it ends the process | [03, 10.4](03_CoreAndGeneral.md#104-abort-handlers) |
 | Access Control Decision | The yes-or-no answer whether a requested operation is permitted. It is based on the identity of the caller and the Access Control Policy. | 15 |
 | Access Control Policy | A rule, bound to a target such as a service interface, that states which identity is needed to access it. | 15 |
+| Access Permission (diagnostics) | `DiagnosticAccessPermission`: the sessions, security levels, environmental condition and roles in which a diagnostic service, DID or routine may be used. | [12a, 7.3](12a_Diagnostics.md#73-session-and-security-checks) |
 | ActionList | The ordered list of ActionListItems that a StateMachine executes when it enters a StateMachine State (meta-class `StateManagementActionList`). | [05, 2.3](05_StateManagement.md#23-actionlist-and-actionlistitem) |
 | ActionListItem | One action of an ActionList, for example a Function Group State request, SYNC, Sleep or the start of an Agent. | [05, 2.3](05_StateManagement.md#23-actionlist-and-actionlistitem) |
 | Activation (update) | The critical phase of a software update in which the new software is switched on and can still be rolled back. | 13 |
@@ -1007,7 +1027,9 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Authenticity | The property that data comes from the source it claims to come from. | 14 |
 | Automotive API Gateway | The functional cluster that gives clients access to selected vehicle data through VISS and VSS. Not covered by the series. | [00, 2.4](#24-topics-outside-the-series) |
 | AUTOSAR XML (ARXML) | The XML format in which AUTOSAR models, including manifests, are exchanged. | [02, 3.1](02_Manifests.md#31-the-anatomy-of-an-arxml-file) |
+| Backup (Persistency) | The copy of all persistent data of a process that Persistency creates before an update; only one backup exists at a time. | [11, 12.5](11_Persistency.md#125-the-update-sequence) |
 | Basic Software (BSW) | In the Classic Platform, the infrastructure software of an ECU below the RTE: services, ECU abstraction, microcontroller abstraction and complex drivers. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
+| Central storage | The location where Persistency keeps the list of installed storages and the versions for one process (`PersistencyCentralStorageUri`). | [11, 12.2](11_Persistency.md#122-the-central-storage-and-the-two-versions) |
 | Certificate | An X.509 document that binds a public key to an identity and is signed by a certificate authority. | 14 |
 | Checkpoint | A point in the control flow of a Supervised Entity where the activity is reported to PHM, so that PHM can supervise its timing and order. | [06, 2.1](06_PlatformHealthManagement.md#21-supervised-entity-checkpoint-and-supervised-entity-instance) |
 | Cipher Suite | A set of algorithms for key exchange, authentication and encryption of a TLS connection, identified by an IANA number. | [08b, 6.4](08b_SecureAndSafeCommunication.md#64-cipher-suites-certificates-and-pre-shared-keys) |
@@ -1021,25 +1043,34 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Constraint | A numbered rule on the meta-model, cited as `[constr_nnnn]`. It must hold from its imposition time on; a model that violates it at that point is invalid. | [00, 5.1](#51-requirement-and-constraint-ids), [02, 2.5](02_Manifests.md#25-constraints-and-imposition-times) |
 | Context ID | The Log and Trace identifier of a logical group of messages within an application, for example `TRCK` of `Fusion`; platform clusters use reserved four-character IDs such as `#COR` | [03, 12.5](03_CoreAndGeneral.md#125-logging-and-tracing-conventions), [10, 5.3](10_LogAndTrace.md#53-context-id) |
 | Continuation | A callable registered with `Future::then` that runs when the result is ready | [03, 9.5](03_CoreAndGeneral.md#95-continuations-with-then) |
+| Contract version | The version of the structure of a process's persistent data; when it increases, the application may migrate its data in the update callback. | [11, 2.5](11_Persistency.md#25-contract-version-and-target-configuration-version) |
 | Control message | A DLT message with which a logging client controls the logging module, or the module's response. | [10, 12](10_LogAndTrace.md#12-controlling-a-running-ecu-control-messages) |
 | Controller (State Management) | The one StateMachine that starts with State Management, controls `MachineFG` and starts and stops the Agents. | [05, 2.5](05_StateManagement.md#25-controller-and-agent) |
 | Corruption | The corruption of a system resource, such as a stack overflow or a bit flip; non-recoverable | [03, 6.4](03_CoreAndGeneral.md#64-corruptions-and-failed-default-allocations) |
 | CppImplementationDataType | A data type with its C++ binding; its category selects the C++ form. | [02, 6.4](02_Manifests.md#64-data-types) |
 | CurrentState | The state a Function Group is in when a transition starts. | [04, 8.1](04_ExecutionManagement.md#81-vocabulary) |
 | Daemon-based | A functional cluster that is intended to be implemented with its own daemon process. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
-| Data Identifier (DID) | A UDS identifier of a data record that a tester can read or write, such as a software version. | 12a |
+| Data Identifier (DID) | A UDS identifier of a data record that a tester can read or write, such as a software version. | [12a, 10.1](12a_Diagnostics.md#101-reading-and-writing-dids-0x22-0x2e) |
+| Data type mapping | `PersistencyKeyValueDataTypeMapping`: declares the previous and the current type of a key, so that the old value can be read during a migration. | [11, 12.6](11_Persistency.md#126-migrating-data-the-update-callback-and-data-type-mappings) |
 | Deadline Supervision | A PHM supervision that checks that the time from a source to a target checkpoint lies between a minimum and a maximum. | [06, 7](06_PlatformHealthManagement.md#7-deadline-supervision) |
 | Design model | Model content that describes the system across compute nodes and is exchanged between roles, often as a contract. | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration) |
 | Determinism | The property that the same inputs always give the same outputs, within a known, bounded time, every time. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
-| Diagnostic Address | The address under which a diagnostic server is reached. A machine can have one for all Software Clusters or one per Software Cluster. | 12a |
+| Diagnostic Address | The address under which a diagnostic server is reached. A machine can have one for all Software Clusters or one per Software Cluster. | [12a, 2.3](12a_Diagnostics.md#23-diagnostic-server-instances-and-software-clusters) |
+| Diagnostic Contribution Set | `DiagnosticContributionSet`: the diagnostic configuration of one Diagnostic Server instance; Software Clusters reference it. | [12a, 2.3](12a_Diagnostics.md#23-diagnostic-server-instances-and-software-clusters) |
+| Diagnostic Conversation | The state of the exchange between one diagnostic tester and one Diagnostic Server instance (session, security level, ongoing request), allocated at run time. | [12a, 6](12a_Diagnostics.md#6-diagnostic-conversations) |
 | Diagnostic Event | The atomic unit of fault detection in Diagnostic Management. Its status reflects the latest result of a diagnostic monitor; one or more events make up a DTC. | 12b |
+| Diagnostic Extract (DEXT) | The AUTOSAR model of the diagnostic behavior of an ECU, shared by the Classic and the Adaptive Platform; the configuration input of Diagnostic Management. | [12a, 2.8](12a_Diagnostics.md#28-the-diagnostic-extract-dext-and-the-manifest) |
+| Diagnostic mapping | A model element that connects a DEXT element, such as a DID or routine, to a port of an executable and a process. | [12a, 14.11](12a_Diagnostics.md#1411-diagnostic-mappings-ports-and-processes) |
 | Diagnostic Monitor | The logic, usually in an application, that tests for a fault and reports the result to a diagnostic event. | 12b |
+| Diagnostic Server instance | One UDS server inside Diagnostic Management; there is one per Diagnostic Contribution Set. | [12a, 2.3](12a_Diagnostics.md#23-diagnostic-server-instances-and-software-clusters) |
+| Diagnostic Session | A mode of a Diagnostic Conversation that unlocks diagnostic services, switched with DiagnosticSessionControl (`0x10`). | [12a, 2.5](12a_Diagnostics.md#25-sessions-security-levels-and-access-permissions) |
 | Diagnostic Trouble Code (DTC) | A code that identifies a detected fault in the vehicle. Diagnostic Management stores it together with snapshot and extended data. | 12b |
 | E2E Profile | A standardized combination of E2E mechanisms and header layout, for example `PROFILE_04`. | [08b, 10.2](08b_SecureAndSafeCommunication.md#102-profiles-available-on-the-adaptive-platform) |
 | E2E Protection | Safety mechanisms that detect corrupted, lost, repeated or delayed data between sender and receiver. An E2E profile defines the exact mechanism. | [08b](08b_SecureAndSafeCommunication.md#10-e2e-profiles-and-the-e2e-header) |
 | E2E State Machine | The function that turns the history of E2E checks into the states VALID, INVALID, INIT or NODATA, using windows and thresholds. | [08b, 11](08b_SecureAndSafeCommunication.md#11-the-e2e-state-machine) |
 | ECU | Electronic Control Unit: an embedded computer with at least one CPU and its peripherals in one housing, connected to vehicle networks, sensors and actuators. | [01, 2.1](01_PlatformOverview.md#21-the-problem-the-classic-platform-solves) |
 | ECU ID | The identifier of the ECU or machine in log and trace messages, defined by `DltEcu.ecuId`. | [10, 5.1](10_LogAndTrace.md#51-ecu-id) |
+| Element (Persistency) | A key-value pair of a Key-Value Storage or a file of a File Storage. | [11, 2.1](11_Persistency.md#21-storages-and-elements) |
 | Error | The inability of an assumed-bug-free API function to fulfill its purpose; recoverable; returned in `Result` or `Future` | [03, 6.2](03_CoreAndGeneral.md#62-errors-are-returned-never-thrown) |
 | Error code value | The integer part of an `ErrorCode`, from the enumeration of its domain | [03, 7.1](03_CoreAndGeneral.md#71-errorcode-value-domain-and-support-data) |
 | Error domain | The context of a set of error codes: identifier, name, messages, exception type | [03, 7.3](03_CoreAndGeneral.md#73-errordomain-identity-name-and-message) |
@@ -1060,18 +1091,19 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Failed Default Allocation | The default memory allocation of the framework cannot satisfy a request; handled like a Non-Standardized Violation | [03, 6.4](03_CoreAndGeneral.md#64-corruptions-and-failed-default-allocations) |
 | Failure transparent | A function that always succeeds: no errors, `noexcept`, no `Result` or `Future` | [03, 2.5](03_CoreAndGeneral.md#25-thread-safety-and-recoverability) |
 | Field | A service element that holds a value. Consumers can get it, set it and be notified when it changes. | [07, 9](07_CommunicationManagement.md#9-fields) |
-| File Storage | A Persistency storage location in which a process can create files, like a directory without subdirectories. | 11 |
+| File Storage | A Persistency storage location in which a process can create files, like a directory without subdirectories. | [11, 7](11_Persistency.md#7-file-storages) |
 | Find service handle | The `ara::com::FindServiceHandle` that identifies a running `StartFindService` search, used to stop it. | [07, 6.4](07_CommunicationManagement.md#64-finding-continuously) |
 | Fire-and-forget method | A method without out arguments and without errors; the caller gets no answer. | [07, 8.5](07_CommunicationManagement.md#85-fire-and-forget-methods) |
 | Firewall | The functional cluster that configures the filtering of network traffic according to rules from the Machine Manifest. | 16 |
 | Forwarding header | `ara/core/core_fwd.h`, which declares most `ara::core` types without defining them | [03, 12.2](03_CoreAndGeneral.md#122-header-files) |
-| Foundation | The AUTOSAR standard that holds what the Classic and the Adaptive Platform have in common, such as the protocols and the glossary. | [00, 4.4](#44-how-autosar-documents-are-named) |
+| Foundation | The AUTOSAR standard that holds what the Classic and the Adaptive Platform have in common, such as the protocols and the glossary. | [00, 4.3](#43-how-autosar-documents-are-named) |
 | Foundation (standard) | The AUTOSAR standard that contains the artifacts common to the Classic and the Adaptive Platform, such as protocols and common requirements, to ensure interoperability. | [01, 1.2](01_PlatformOverview.md#12-three-autosar-standards-adaptive-classic-and-foundation) |
 | Freedom From Interference | The guarantee that a faulty part of the system cannot disturb unrelated parts. | [04, 11.1](04_ExecutionManagement.md#111-why-resource-management-matters) |
 | Freshness Value | A counter or time stamp that makes each SecOC message unique in time and prevents replay. | [08b, 2.3](08b_SecureAndSafeCommunication.md#23-authenticator-mac-freshness-value-and-truncation) |
 | Freshness Value Manager (FVM) | The plug-in that provides and synchronizes SecOC freshness values; on the Adaptive Platform the platform extension `apext::com::secoc::FVM`. | [08b, 7.8](08b_SecureAndSafeCommunication.md#78-the-freshness-value-manager-plug-in) |
 | Function Group | A named group of processes that are switched on and off together. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states), [02, 7.5](02_Manifests.md#75-function-groups-and-their-states) |
 | Function Group State | One mode of a Function Group, which defines the set of processes that run. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
+| Functional address | A diagnostic target address that addresses several servers at once. | [12a, 2.2](12a_Diagnostics.md#22-diagnostic-client-diagnostic-server-and-addresses) |
 | Functional Cluster | A logical group of platform functionality, such as Execution Management, with its own specification and API. | [00, 2.3](#23-functional-clusters-and-their-guides), [01, 5](01_PlatformOverview.md#5-the-functional-clusters-of-r25-11) |
 | FunctionGroupPortMapping | The manifest element that allows one State Management process to control one Function Group. | [04, 12.6](04_ExecutionManagement.md#126-function-group-access-control) |
 | Getter | The accessor of a field with which a consumer reads its current value (`Get`). | [07, 9.3](07_CommunicationManagement.md#93-get-and-the-optional-gethandler) |
@@ -1096,7 +1128,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Inter-Functional-Cluster (IFC) interface | An interface that one functional cluster provides to other clusters. Not part of ARA and not a formal requirement; described in an annex of the SWS. | [01, 6.2](01_PlatformOverview.md#62-how-clusters-talk-to-each-other) |
 | Intrusion Detection System | The system that detects, records and reports security events. It consists of security sensors, the IdsM and the IdsR. | 16 |
 | Intrusion Detection System Manager | The functional cluster that collects security events, qualifies them by rules, and stores or forwards the qualified events. | 16 |
-| Key-Value Storage | A Persistency storage location that holds key-value pairs. | 11 |
+| Key-Value Storage | A Persistency storage location that holds key-value pairs. | [11, 6](11_Persistency.md#6-key-value-storages) |
 | Language Binding | How a service is presented to the programmer, for example as generated C++ proxy and skeleton classes. | [07, 5](07_CommunicationManagement.md#5-from-service-interface-to-generated-code) |
 | Library-based | A functional cluster whose interface library is linked into the application and communicates with the cluster directly. | [01, 4.2](01_PlatformOverview.md#42-library-based-and-service-based-functional-clusters) |
 | Local cache | The memory that `Subscribe(maxSampleCount)` reserves in the consumer for the samples of one event or field. | [07, 7.3](07_CommunicationManagement.md#73-receiving-samples) |
@@ -1110,6 +1142,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Logging client | An external tool that receives and stores log messages and can control the ECU. | [10, 2.8](10_LogAndTrace.md#28-logging-client-and-control-messages) |
 | Logical Supervision | A PHM supervision that checks the order of checkpoints against a graph of allowed transitions. | [06, 8](06_PlatformHealthManagement.md#8-logical-supervision) |
 | LogStream | The temporary `ara::log` object that collects the arguments of one non-modeled message. | [10, 7.8](10_LogAndTrace.md#78-keeping-a-logstream-flush-and-scope) |
+| M out of N | Redundancy with N copies of which at least M must be identical when read; the only redundancy type that can repair corrupted data. | [11, 9.3](11_Persistency.md#93-m-out-of-n-and-storage-locations) |
 | Machine | The environment one Adaptive Platform instance runs on: an ECU, a virtual machine or a container. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process), [02, 7.3](02_Manifests.md#73-the-machine) |
 | Machine Design | The design-time placeholder of an Adaptive Machine in the system, the counterpart of the Classic `EcuInstance`. | [02, 7.2](02_Manifests.md#72-machine-design) |
 | Machine Manifest | The machine-wide configuration. | [04, 4.1](04_ExecutionManagement.md#41-where-the-configuration-lives), [02, 7](02_Manifests.md#7-system-design-machine-design-and-the-machine-manifest) |
@@ -1119,6 +1152,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Message Authentication Code | A short value computed with a secret key that proves the integrity and authenticity of data. | 14 |
 | Message ID | The 32-bit identifier of a modeled message on the wire. | [10, 8.5](10_LogAndTrace.md#85-message-ids) |
 | Meta-model | The AUTOSAR vocabulary (M2) in which models (M1) are written; the XML Schema is generated from it. | [02, 2.1](02_Manifests.md#21-meta-levels-meta-model-model-and-xml-schema) |
+| MetaInfo | `ara::diag::MetaInfo`: information about the current diagnostic request, such as the tester's address, passed to every provider call. | [12a, 13.2](12a_Diagnostics.md#132-metainfo-who-is-asking) |
 | Method | A service element that a consumer calls and the provider executes, possibly returning a result. | [07, 8](07_CommunicationManagement.md#8-methods) |
 | Method Call Processing Mode | How a skeleton executes incoming method calls: `kEvent` (concurrent), `kEventSingleThread` (sequential) or `kPoll` (on request of the provider). | [07, 8.7](07_CommunicationManagement.md#87-method-call-processing-modes) |
 | Minimum Send Interval | The configurable minimum time between two transmissions of one event, trigger, field update, method call, `Get` or `Set`. | [07, 11.4](07_CommunicationManagement.md#114-the-minimum-send-interval) |
@@ -1136,14 +1170,18 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Non-Standardized Violation | A Violation specific to an implementation; ends with `Abort` or a non-`ara::core` exception | [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
 | Non-verbose mode | The DLT form in which a message carries only a message ID and its variable data. | [10, 11.5](10_LogAndTrace.md#115-non-verbose-payload) |
 | Notifier | The part of a field that notifies subscribers of value changes, like an event. | [07, 9.5](07_CommunicationManagement.md#95-subscribing-to-field-notifications) |
+| NRC | Negative response code: the one-byte reason in a negative UDS response. | [12a, 2.1](12a_Diagnostics.md#21-uds-in-one-page) |
 | Off (state) | The mandatory initial state of every Function Group. No processes run in it. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
 | Operating System Interface | The part of ARA that defines the operating system services available to Adaptive Applications (PSE51 and the C++ standard library), and the requirements on the operating system. | [01, 7](01_PlatformOverview.md#7-the-operating-system-interface) |
 | Operation Cycle | A period, such as one drive cycle, that Diagnostic Management uses to evaluate and age DTCs. | 12b |
 | OSEK OS | The event-triggered automotive operating system with fixed priority-based scheduling, standardized as ISO 17356-3, on which the Classic OS is based. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
 | OTA Client | An Adaptive Application that connects the vehicle's update management to the backend. | 13 |
+| P2, P2* | Server response times of a diagnostic session: until the first response, and between response-pending messages. | [12a, 7.6](12a_Diagnostics.md#76-response-pending-p2-and-p2-and-the-pending-limit) |
 | Partial model | The content of one ARXML file; it shall validate against the schema but need not satisfy all constraints. | [02, 3.7](02_Manifests.md#37-many-files-one-model) |
 | Partial Network | A subset of the nodes of a network that can be woken up and put to sleep independently of the rest. | 09 |
 | Partial SOME/IP Header | The first 8 bytes of a SOME/IP header (Message ID and Length) in front of a signal-based PDU on Ethernet. | [08a](08a_NetworkBindings.md) |
+| Persistency user | An Adaptive Application or a functional cluster that uses Persistency. | [11, 2.3](11_Persistency.md#23-persistency-users-and-process-local-data) |
+| Physical address | A diagnostic target address of exactly one server. | [12a, 2.2](12a_Diagnostics.md#22-diagnostic-client-diagnostic-server-and-addresses) |
 | Planned Dynamics | The principle that dynamic behavior is allowed during development but can be limited to defined ways for production. | [00, 1.1](#11-the-adaptive-platform-in-one-page), [01, 2.7](01_PlatformOverview.md#27-determinism-on-the-adaptive-platform) |
 | Platform extension interface | A standardized interface through which the OEM extends the platform: a callout, a callback or a plugin. | [01, 3.5](01_PlatformOverview.md#35-standardized-and-non-standardized-parts) |
 | PLATFORM_CORE | The category of the SoftwareCluster that carries `MachineFG`. There is exactly one per machine. | [04, 7.3](04_ExecutionManagement.md#73-machinefg-and-machine-states) |
@@ -1163,21 +1201,26 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Rebind | The assignment behavior of `Optional<T&>` and `Result<T&>`: the object refers to the new target afterwards | [03, 11.5](03_CoreAndGeneral.md#115-optional-and-variant) |
 | Receive handler | A callback that Communication Management calls when new event data, field notifications or triggers have arrived. | [07, 7.5](07_CommunicationManagement.md#75-polling-or-event-driven-reception) |
 | Recommended package | The package name that the meta-model proposes for an element kind, for example `ServiceInterfaces`. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
+| Recovery (Persistency) | Best-effort restoration of a corrupted storage or element; the result may be current, outdated or initial data and must be validated. | [11, 9.6](11_Persistency.md#96-recover-or-reset) |
 | Recovery notification | The call of State Management's `RecoveryHandler` when a Global Supervision expires, and its configuration. | [06, 12](06_PlatformHealthManagement.md#12-recovery-notifying-state-management) |
+| Redundancy (Persistency) | CRCs, hash values or copies that Persistency stores to detect and possibly repair corrupted data. | [11, 9.1](11_Persistency.md#91-detect-or-repair) |
 | Registry | An internal component that gives other clusters access to manifest information. Not used by applications. | [01, 5.7](01_PlatformOverview.md#57-configuration), [02, 11.8](02_Manifests.md#118-how-the-platform-consumes-manifests-at-run-time) |
 | Reporting Process | A process that reports `kRunning` using `ExecutionClient`. This is the normal case. | [04, 2.4](04_ExecutionManagement.md#24-process-flavors) |
 | RequestedState | The target state of a transition. | [04, 8.1](04_ExecutionManagement.md#81-vocabulary) |
 | Requirement ID | The unique identifier of a requirement in a specification, such as `[SWS_EM_01050]`. | [00, 5.1](#51-requirement-and-constraint-ids) |
+| Reset (Persistency) | Returning a storage or an element to the state after installation with the current target configuration. | [11, 9.6](11_Persistency.md#96-recover-or-reset) |
 | ResourceGroup | A group of processes that share a CPU limit and a memory limit. | [04, 11.3](04_ExecutionManagement.md#113-resourcegroup-group-level-limits) |
+| Response Pending | The NRC `0x78`, sent by the server while it needs more time to answer. | [12a, 7.6](12a_Diagnostics.md#76-response-pending-p2-and-p2-and-the-pending-limit) |
 | Response time | The time between a task becoming ready and generating its response, including all preemptions. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
 | Rollback | Returning to the previous software version after an update. | 13 |
 | Rollback semantics | A recoverability class: the failed call has no negative side effects; retrying is safe | [03, 6.6](03_CoreAndGeneral.md#66-recoverability-classes) |
 | RootSwComponentPrototype | The root of the component hierarchy inside an Executable; its short name is part of every `InstanceSpecifier`. | [02, 5.3](02_Manifests.md#53-the-executable-and-its-root-prototype) |
-| Routine | A function in the ECU that a tester starts, stops or queries with the UDS service RoutineControl. | 12a |
+| Routine | A function in the ECU that a tester starts, stops or queries with the UDS service RoutineControl. | [12a, 11.1](12a_Diagnostics.md#111-start-stop-and-request-results) |
 | Runnable (Runnable Entity) | In the Classic Platform, a part of a software component that the RTE can start and that is executed in the context of an OS task. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
 | Runtime Environment (RTE) | In the Classic Platform, the generated layer between the application software components and the Basic Software. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
 | S2R Hub | The part of State Management that asks the S2R Satellites to enter or leave Suspend Mode and then tells the OS to suspend. | [05, 2.8](05_StateManagement.md#28-suspend-to-ram-terms) |
 | S2R Satellite | An object in an S2R-Aware application that registers with the S2R Hub and is notified before suspend and after wake-up. | [05, 2.8](05_StateManagement.md#28-suspend-to-ram-terms) |
+| S3 timer | Session timeout that returns a silent tester to the default session (5000 ms if not configured). | [12a, 8.1](12a_Diagnostics.md#81-diagnosticsessioncontrol-and-the-s3-timer) |
 | Safe Translation | A Signal-to-Service translation that preserves end-to-end protection (`safeTranslation`). | [08b, 14.1](08b_SecureAndSafeCommunication.md#141-safetranslation-and-securetranslation) |
 | Safety Element out of Context (SEooC) | A safety element developed without a specific vehicle context, based on assumptions; at best, the architecture of the Adaptive Platform can be considered one. | [01, 8.3](01_PlatformOverview.md#83-safety) |
 | SampleAllocateePtr | The smart pointer to memory that a provider gets from `Allocate()` and hands over with `Send`. | [07, 7.1](07_CommunicationManagement.md#71-sending-an-event) |
@@ -1186,6 +1229,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Secure Channel | A communication channel that provides at least integrity and authenticity, and authenticates at least one side. | [08b](08b_SecureAndSafeCommunication.md#22-secure-channel-and-security-association), 14 |
 | Secured I-PDU | A message with SecOC authentication information: the authentic message, an optional freshness value and the authenticator. | [08b, 7.2](08b_SecureAndSafeCommunication.md#72-the-secured-message-byte-by-byte) |
 | Security Event | An event related to the security of the ECU that should be reported for later analysis. | 16 |
+| Security Level (diagnostics) | A level of a Diagnostic Conversation unlocked with SecurityAccess (`0x27`) by a seed-and-key exchange. | [12a, 8.2](12a_Diagnostics.md#82-securityaccess-seed-and-key-aradiagsecurityaccess) |
 | Self-terminating Process | A process that is allowed to exit on its own, typically a one-shot job. | [04, 5.6](04_ExecutionManagement.md#56-self-terminating-processes) |
 | Server | A software entity that provides services to clients. | [07, 2.1](07_CommunicationManagement.md#21-service-interface-service-instance-provider-and-consumer) |
 | Service | Functionality with a published interface and behavior that a provider offers to consumers. | [07, 2.1](07_CommunicationManagement.md#21-service-interface-service-instance-provider-and-consumer) |
@@ -1202,6 +1246,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Session Handling | Counting the Session ID of SOME/IP messages; active for requests, responses and segmented messages. | [08a](08a_NetworkBindings.md) |
 | Session ID | The identifier of one instance of a software component that runs several times. | [10, 5.5](10_LogAndTrace.md#55-session-id) |
 | Setter | The accessor of a field with which a consumer asks the provider to change its value (`Set`). | [07, 9.4](07_CommunicationManagement.md#94-set-and-the-mandatory-sethandler) |
+| Shared handle | `ara::per::SharedHandle`: the copyable owner of an open Key-Value Storage or File Storage. | [11, 5.3](11_Persistency.md#53-sharedhandle-and-uniquehandle) |
 | Shared state | The object shared by a `Promise` and its `Future` that holds the value or error | [03, 9.1](03_CoreAndGeneral.md#91-future-and-promise-in-plain-words) |
 | Short name | The identifier of a model element within its name space; a C identifier, unique case-insensitively. | [02, 3.2](02_Manifests.md#32-packages-short-names-and-paths) |
 | Signal | A piece of data, such as the vehicle speed, that is exchanged in signal-based communication, typically in a PDU on CAN. | [08a](08a_NetworkBindings.md) |
@@ -1236,8 +1281,10 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Support data value | Optional vendor-specific data inside an `ErrorCode`; ignored by comparisons | [03, 7.1](03_CoreAndGeneral.md#71-errorcode-value-domain-and-support-data) |
 | Suspend-to-RAM (S2R) | A low-power mode in which RAM keeps the system state while most of the machine is powered down, for a fast wake-up. | [05, 2.8](05_StateManagement.md#28-suspend-to-ram-terms) |
 | Target configuration | Model content whose scope is mostly local to one compute node, usually created during integration. Formerly called "deployment". | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration) |
+| Target Configuration version | The version of the deployed content of a storage (`PersistencyCommon.Version`); it decides between installation, update and roll-back. | [11, 2.5](11_Persistency.md#25-contract-version-and-target-configuration-version) |
 | Task (OS) | The smallest schedulable unit managed by the operating system; a thread in POSIX terms. | [01, 7.10](01_PlatformOverview.md#710-os-tracing-with-arti) |
 | Termination handler | The callback that `ExecutionClient` invokes, in a background thread, when `SIGTERM` arrives. | [04, 5.5](04_ExecutionManagement.md#55-terminating-a-process) |
+| Temporary storage | The in-memory working copy of an open Key-Value Storage; changes become persistent only with `SyncToStorage`. | [11, 6.1](11_Persistency.md#61-the-temporary-storage) |
 | Thread-safe | Callable concurrently on the same object by several threads without synchronization by the caller | [03, 12.6](03_CoreAndGeneral.md#126-thread-safety) |
 | Threshold | The minimum log level that a logger lets through. | [10, 2.1](10_LogAndTrace.md#21-log-message-log-level-and-threshold) |
 | Time Base | A synchronized time, such as `VehicleTime`, that Time Synchronization offers to applications. | 09 |
@@ -1246,16 +1293,19 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Trace switch | The compile-time routing of a modeled message to the logger, ARTI, both or nowhere, configured by `TraceSwitchConfig`. | [10, 14.3](10_LogAndTrace.md#143-the-trace-switch) |
 | TransitionRequestTable | The rules of a StateMachine that map a requested value and the current StateMachine State to the next StateMachine State. | [05, 2.4](05_StateManagement.md#24-transitionrequesttable-and-errorrecoverytable) |
 | Transport fault condition | A transport-related fault reported to a handler: sample rejected, deadline missed or sample lost. | [07, 11.5](07_CommunicationManagement.md#115-transport-fault-conditions) |
+| Transport Protocol Handler | A plug-in of Diagnostic Management that implements a UDS transport protocol such as DoIP. | [12a, 5.1](12a_Diagnostics.md#51-transport-protocol-handlers-and-the-transport-protocol-manager) |
 | Trigger | A service element like an event, but without data. | [07, 7.7](07_CommunicationManagement.md#77-triggers) |
 | Trust Anchor | The root of trust, for example a public key in protected memory, from which all authenticity checks derive. | [04, 12.1](04_ExecutionManagement.md#121-trusted-platform-basics) |
 | Trusted Platform | A platform on which only software of verified integrity and authenticity runs. | [04, 12.1](04_ExecutionManagement.md#121-trusted-platform-basics) |
-| UDS | Unified Diagnostic Services, the diagnostic protocol of ISO 14229 that testers use. | 12a |
+| UDS | Unified Diagnostic Services, the diagnostic protocol of ISO 14229 that testers use. | [12a, 2.1](12a_Diagnostics.md#21-uds-in-one-page) |
 | Undefined behavior | No guarantees at all, as in the C++ standard; not detected, unlike a Violation | [03, 2.4](03_CoreAndGeneral.md#24-undefined-implementation-defined-and-vendor-specific-behavior) |
 | Undefined Function Group State | A Function Group state that is not one of the modelled states: during a transition, after a failed transition, or after a crash. | [04, 10.3](04_ExecutionManagement.md#103-undefined-function-group-state) |
 | Unexpected Termination | A process ended without a justified reason, for example without being asked to, or before it reported `kRunning`. | [04, 2.5](04_ExecutionManagement.md#25-termination-events) |
+| Unique handle | `ara::per::UniqueHandle`: the move-only owner of an open file accessor. | [11, 5.3](11_Persistency.md#53-sharedhandle-and-uniquehandle) |
 | Unrecoverable State | EM's last resort: pre-cleanup, then terminate all processes, then post-cleanup. | [04, 10.4](04_ExecutionManagement.md#104-unrecoverable-state) |
 | Update Bit | A bit in a PDU that indicates whether a signal was actually updated in this transmission. | [08a](08a_NetworkBindings.md) |
 | Update session | The period, granted by State Management, during which UCM may change the software of the machine. | 13 |
+| Update strategy | What Persistency does with an existing element when a new configuration is deployed: keep existing, overwrite, or delete. | [11, 2.6](11_Persistency.md#26-update-strategies) |
 | Uploadable element | An element derived from `UploadablePackageElement`, which is uploaded to the Machine as part of a Software Cluster. | [02, 2.4](02_Manifests.md#24-design-elements-and-uploadable-elements) |
 | Vehicle Package | A package, assembled by the OEM backend, that describes an update campaign across several ECUs. V-UCM processes it. | 13 |
 | Vehicle Services | Functional clusters that provide vehicle-level functions: V-UCM, the Automotive API Gateway and Remote Persistency. | [01, 3.3](01_PlatformOverview.md#33-four-groups-of-functional-clusters) |
@@ -1267,6 +1317,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Violation message | The standardized fatal DLT message of a Standardized Violation | [03, 15.3](03_CoreAndGeneral.md#153-violation-messages) |
 | Watchdog | A hardware or software timer that resets the system if it is not triggered in time. PHM triggers it. | [06, 13](06_PlatformHealthManagement.md#13-the-hardware-watchdog-and-critical-failures) |
 | Worst-case execution time (WCET) | The longest possible execution time of a task or interrupt handler. | [01, 2.3.1](01_PlatformOverview.md#231-what-determinism-means) |
+| Write-only-once | Access mode, new in R25-11, that allows adding elements to a storage but never changing existing ones. | [11, 2.8](11_Persistency.md#28-access-modes) |
 
 ---
 
@@ -1310,7 +1361,7 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 
 | Area | Elements |
 | --- | --- |
-| Persistency | `Storage`: `CalibrationKvs` (`CameraExtrinsics`, `RadarAlignment`), `Recordings`. `Fusion`: `FusionParams` (`TrackerTuning`) |
+| Persistency | `Storage`: `CalibrationKvs` (`CameraExtrinsics`, `RadarAlignment`; port `CalibrationKvsPort`; 2 out of 3, MAC), `Recordings` (`RecordingsPort`; at most 64 files). `Fusion`: `FusionParams` (`TrackerTuning`, `TrackerTuningV1` → `TrackerTuningV2`; port `FusionParamsPort`; CRC per element) |
 | Error domains | `CameraErrors` `0x1001` (`ExposureModeNotSupported` 1); `AdasExecutionErrors` `0x1002` (`FusionFailed` 42, `AdasStateTimeout` 60, `AdasTransitionRequestFailed` 61); `FusionErrors` `0x1003`, hand-written in `Fusion` (`kInputTimeout` 1, `kCalibrationImplausible` 2) |
 | Diagnostics | DID `0x0101` `FusionSoftwareVersion`; routine `0x0201` `CalibrateCamera`; ECU reset (`0x11`); event `CameraBlocked` → DTC `0x9A1011`, snapshot `VehicleSpeed` |
 | Update | `AdasCluster` 1.0.0 → 1.1.0 (`fusion` 1.1.0, migration of `FusionParams`); activation through `ADAS.Verify`; rollback to 1.0.0. Vendor IDs `0x1111` (`HpcPlatformCore`) and `0x1234` (`AdasCluster`) |

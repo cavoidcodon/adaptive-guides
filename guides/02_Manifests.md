@@ -955,8 +955,8 @@ Applications also use ports to reach functional clusters. For this purpose the T
 | `StateClientInterface`, `StateManagementPortInterface` subclasses | State Management requests and notifications | 4.5 | 04, 05 |
 | `PhmSupervisedEntityInterface` | Supervision checkpoints of a process | 4.8 | 06 |
 | `LogAndTraceInterface` | Modeled log messages | 4.13 | 10 |
-| `PersistencyKeyValueStorageInterface`, `PersistencyFileStorageInterface` | Key-value storages and file storages | 4.6 | 11 |
-| `DiagnosticDataIdentifierInterface`, `DiagnosticRoutineInterface`, `DiagnosticMonitorInterface` and others | Diagnostic data, routines and events | 4.9 | 12a, 12b |
+| `PersistencyKeyValueStorageInterface`, `PersistencyFileStorageInterface` | Key-value storages and file storages | 4.6 | [11](11_Persistency.md#142-persistencyinterface-and-its-subclasses) |
+| `DiagnosticDataIdentifierInterface`, `DiagnosticRoutineInterface`, `DiagnosticMonitorInterface` and others | Diagnostic data, routines and events | 4.9 | [12a](12a_Diagnostics.md#1410-diagnostic-port-interfaces), 12b |
 | `CryptoKeySlotInterface`, `CryptoCertificateInterface`, `CryptoProviderInterface` | Access to keys, certificates and crypto providers | 4.10 | 14 |
 | `SecurityEventReportInterface` | Reporting of security events | 4.12 | 16 |
 | `FirewallStateSwitchInterface` | Switching firewall states | 4.14 | 16 |
@@ -1177,7 +1177,7 @@ Because the Adaptive Platform communicates over Ethernet, designing the communic
 - `communicationConnector`: the connections to the network, typically an `EthernetCommunicationConnector`, which references its unicast `NetworkEndpoint`s and aggregates the `ApApplicationEndpoint`s. An `ApApplicationEndpoint` defines a UDP or TCP port; together with the network endpoint it forms a socket ([TPS_MANI_03280]). The port number `0` asks the middleware for an ephemeral port ([TPS_MANI_03227]).
 - `serviceDiscoveryConfig`: the SOME/IP service discovery settings per connector, such as the multicast address and the port (TPS, Section 6.5).
 - `processor`: processors and cores known at design time, so that design-level core affinity can refer to them ([Section 5.4](#54-process-design-a-stand-in-for-a-future-process)).
-- further settings, for example the partial network timers, the access control mode, and the design of the DoIP functional cluster (guide 12a).
+- further settings, for example the partial network timers, the access control mode, and the design of the DoIP functional cluster ([guide 12a, Section 14.12](12a_Diagnostics.md#1412-doip-configuration)).
 
 According to the Methodology TR, the communication structure of a prospective Machine is designed first, either by the OEM's communication designer or by a Tier 1 integrator on the basis of the network endpoints that the OEM shares. The result is the `MachineDesign`. The configuration of the Machine for a real ECU follows as the second step, in the Machine Manifest ([TR_AMETH_00003], [TR_AMETH_00021]).
 
@@ -2080,7 +2080,7 @@ The TPS states that its manifest content "will be replaced step-by-step" by a ta
 
 The benefits that APMC names are a much simpler model structure, the ability to define default values, terminology specific to each functional cluster, arbitrary multiplicities, changes without a change of the XML Schema, vendor extensions as first-class citizens, and a clear separation between design workflow and configuration workflow (APMC, Section 2.3). APMC also describes how much of the design is copied into the configuration: nothing, everything, or a part, with flat references or instance references into the remaining design (APMC, Section 2.4).
 
-**Status in R25-11.** For two functional clusters, APMC is already the canonical target configuration: Persistency and Update and Configuration Management. Their parameters are documented in Chapter 10.1 of their specifications; the M2 description in the TPS is still provided but may be discontinued (TPS, Sections 12.2 and 12.8). The TPS Appendix I describes how the APMC parameters of Persistency map to the manifest meta-classes. Guides 11 and 13 explain these configurations. All other clusters are configured through the meta-model as described in this guide.
+**Status in R25-11.** For two functional clusters, APMC is already the canonical target configuration: Persistency and Update and Configuration Management. Their parameters are documented in Chapter 10.1 of their specifications; the M2 description in the TPS is still provided but may be discontinued (TPS, Sections 12.2 and 12.8). The TPS Appendix I describes how the APMC parameters of Persistency map to the manifest meta-classes. [Guide 11](11_Persistency.md#14-configuration-reference-what-to-configure) and guide 13 explain these configurations. All other clusters are configured through the meta-model as described in this guide.
 
 > **Key takeaways**
 >
@@ -2146,7 +2146,7 @@ The following checklist produces the model of this guide. Each step names the el
 | `version` | Version of the program | `StrongRevisionLabelString`, for example `1.0.0` | `0..1` | not specified | | Used for updates and diagnostics (guides 12a, 13) |
 | `minimumTimerGranularity` | Minimum timer resolution required | `TimeValue` (seconds) | `0..1` | not specified | | Not specified by the TPS; the OS side is described by `OsModuleInstantiation.supportedTimerGranularity` |
 | `suspendToRamAwareness` | Behavior during suspend-to-RAM (candidate, DRAFT) | `suspendToRamTolerant`, `suspendToRamAware`, `suspendToRamNotSupported` | `0..1` | not specified | [TPS_MANI_01513] | Guide 05 |
-| `implementationProps` | Build-time properties of platform-level Executables | `ExecutableLoggingImplementationProps` | `*` | not specified | Only for `PLATFORM_LEVEL` ([constr_10113]) | Guide 10 |
+| `implementationProps` | Build-time properties of platform-level Executables | `ExecutableLoggingImplementationProps` | `*` | not specified | Only for `PLATFORM_LEVEL` ([constr_10113]) | [Guide 10, 15.9](10_LogAndTrace.md#159-traceswitchconfig-and-executableloggingimplementationprops) |
 
 ### 12.4 ServiceInterface and Its Elements
 
@@ -2279,7 +2279,7 @@ The following checklist produces the model of this guide. Each step names the el
 | `ProcessToMachineMapping.process`, `machine` | The process and its Machine | (ref) | `0..1` each | not specified | Both shall exist ([constr_10174], [constr_10658]); each process mapped once ([constr_1553], [constr_5004]) | The Machine on which EM starts the process |
 | `ProcessToMachineMapping.shallRunOn`, `shallNotRunOn` | Core affinity | `ProcessorCore` (ref) | `*` each | All cores (EM guide) | Cores of the referenced Machine and one processor; only one of the two ([constr_3393], [constr_1676], [constr_1677]) | [EM guide, Section 11.5](04_ExecutionManagement.md#115-cpu-core-affinity-and-scheduling) |
 | `ProcessToMachineMapping.nonOsModuleInstantiation` | The platform module that the process implements | `NonOsModuleInstantiation` (ref) | `0..1` | not specified | Executable `PLATFORM_LEVEL` ([constr_1490]) | Cluster guides |
-| `ProcessToMachineMapping.persistencyCentralStorageURI` | Central place for the process's storage information | `UriString` | `0..1` | not specified | Shall exist if the process uses Persistency ([constr_10090]) | Guide 11 |
+| `ProcessToMachineMapping.persistencyCentralStorageURI` | Central place for the process's storage information | `UriString` | `0..1` | not specified | Shall exist if the process uses Persistency ([constr_10090]) | [Guide 11, 14.12](11_Persistency.md#1412-the-legacy-m2-target-configuration) |
 | `ProcessToMachineMapping.design` | The design-level mapping | `ProcessDesignToMachineDesignMapping` (ref) | `0..1` | not specified | | |
 
 ### 12.13 ServiceInterfaceDeployment and Service Instances

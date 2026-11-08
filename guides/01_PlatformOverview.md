@@ -229,7 +229,7 @@ The Adaptive Platform is a standard, not a product. In a project you use an impl
 | The operating system interface for applications: PSE51 and the C++ standard library | The operating system interfaces that Execution Management uses to create processes (*OSI*, Chapter 1) |
 | The service interfaces through which UCM installs and activates Software Packages | The format of the Software Package itself (*Platform Design*, Section 13.3.1) |
 
-The kinds of AUTOSAR documents (RS, SWS, TPS, PRS, EXP, TR) and their weight are explained in [guide 00, Section 4.4](00_LearningPath.md#44-how-autosar-documents-are-named) and [Section 5.2](00_LearningPath.md#52-three-kinds-of-statements). This guide relies mostly on explanatory documents, so most of its statements explain the standard; the requirement IDs come from the *Operating System Interface* and, in Chapter 2, from the Classic Platform *Specification of Operating System*.
+The kinds of AUTOSAR documents (RS, SWS, TPS, PRS, EXP, TR) and their weight are explained in [guide 00, Section 4.3](00_LearningPath.md#43-how-autosar-documents-are-named) and [Section 5.2](00_LearningPath.md#52-three-kinds-of-statements). This guide relies mostly on explanatory documents, so most of its statements explain the standard; the requirement IDs come from the *Operating System Interface* and, in Chapter 2, from the Classic Platform *Specification of Operating System*.
 
 ### 1.4 Releases and Maturity
 
@@ -239,7 +239,7 @@ The kinds of AUTOSAR documents (RS, SWS, TPS, PRS, EXP, TR) and their weight are
 - **Stabilization.** AUTOSAR declared R24-11 a stabilization release, to get a stable and consistent set of APIs for production-grade applications. The remaining issues of that stabilization were solved in R25-11 (*Release Overview*, Section 1.5.3).
 - **C++17.** The minimum C++ version of the AUTOSAR code base is now C++17, to align with MISRA C++:2023 and because some OS suppliers deprecate C++14. A move to C++20 is being evaluated (*Release Overview*, Section 1.5.4).
 
-[Guide 00, Section 1.3](00_LearningPath.md#13-the-baseline-release-r25-11) explains why the whole series uses R25-11 only.
+[Guide 00, Chapter 1](00_LearningPath.md#1-welcome-to-the-series) explains why the whole series uses R25-11 only.
 
 > **Pitfall:** Training material and code examples from older releases are still in circulation. Typical traps are the `DeterministicClient` API of Execution Management, which was removed in R24-11 ([EM guide, Appendix D](04_ExecutionManagement.md#appendix-d-notable-changes-in-recent-releases)), and C++14-era code. Check the release on the title page of every document you use.
 
@@ -1290,7 +1290,7 @@ If tracing is desired, the OSI shall log a modeled message for each of the follo
 | `OsTaskSchedule` | `0x8000e00b` | A task is scheduled and enters *Running* | [SWS_OSI_02014] |
 | `OsTaskWait` | `0x8000e00c` | A task enters *Waiting* | [SWS_OSI_02015] |
 
-`OsProcessInfo` links an operating system PID to a Modelled Process of the manifest. This lets a trace tool show, for example, that PID 1234 is the process `Fusion` of the running example. Guide 10 explains how modeled messages are logged and read.
+`OsProcessInfo` links an operating system PID to a Modelled Process of the manifest. This lets a trace tool show, for example, that PID 1234 is the process `Fusion` of the running example. [Guide 10](10_LogAndTrace.md#8-modeled-messages) explains how modeled messages are logged and read.
 
 ### 7.11 What the OSI Does Not Define
 

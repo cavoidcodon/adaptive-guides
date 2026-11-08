@@ -1460,7 +1460,7 @@ Arguments passed by reference are provided by Communication Management only unti
 ara::core::Future<CalibrationService::GetCalibrationOutput>
 CalibrationService::GetCalibration(hpc::storage::CalibrationKey key) noexcept {
     ara::core::Promise<GetCalibrationOutput> promise;
-    auto record = store_.Read(key);  // reads CalibrationKvs (guide 11)
+    auto record = store_.Read(key);  // reads CalibrationKvs (guide 11, Section 6.7)
     if (record.HasValue()) {
         promise.set_value(GetCalibrationOutput{std::move(record).Value()});
     } else {
@@ -2231,7 +2231,7 @@ CalibrationService::SetCalibration(hpc::storage::CalibrationKey key,
 }
 ```
 
-`CameraDriver` calls `SetCalibration` at the end of the diagnostic routine `CalibrateCamera` (guide 12a). The routine waits for the result with a timeout, because `ara::com` does not time out calls ([Section 8.3](#83-no-timeout-supervision)):
+`CameraDriver` calls `SetCalibration` at the end of the diagnostic routine `CalibrateCamera` ([guide 12a, Section 11.4](12a_Diagnostics.md#114-worked-example-calibratecamera)). The routine waits for the result with a timeout, because `ara::com` does not time out calls ([Section 8.3](#83-no-timeout-supervision)):
 
 ```cpp
 // CameraDriver: store a new camera calibration (illustrative).
@@ -2900,7 +2900,7 @@ The handler types are "general purpose function aliases"; `std::function` is the
 
 ### 15.11 Complete Example: `CameraDriver`
 
-The three programs of this and the next two sections form one consistent sample. They follow the R25-11 signatures; types such as `Sensor`, `Frame`, `RadarInput` and `RecordingFile` stand for the application's own code. Supervision checkpoints (guide 06) and logging (guide 10) are left out. All programs initialize ARA first, offer their services before they report `kRunning`, and stop their offers before they end ([guide 03, Section 5.6](03_CoreAndGeneral.md#56-worked-example-the-main-function-of-fusion); [EM guide, Section 14.3](04_ExecutionManagement.md#143-executionclient)).
+The three programs of this and the next two sections form one consistent sample. They follow the R25-11 signatures; types such as `Sensor`, `Frame`, `RadarInput` and `RecordingFile` stand for the application's own code. Supervision checkpoints (guide 06) and logging ([guide 10](10_LogAndTrace.md)) are left out. All programs initialize ARA first, offer their services before they report `kRunning`, and stop their offers before they end ([guide 03, Section 5.6](03_CoreAndGeneral.md#56-worked-example-the-main-function-of-fusion); [EM guide, Section 14.3](04_ExecutionManagement.md#143-executionclient)).
 
 ```cpp
 // camera_driver: provider of CameraService (illustrative, simplified).
@@ -3224,7 +3224,7 @@ static int Run() {
     auto objectsSpec = ara::core::InstanceSpecifier::Create("/storage/Root/ObjectListRPort");
     if (!client.HasValue() || !calibSpec.HasValue() || !objectsSpec.HasValue()) { return EXIT_FAILURE; }
 
-    CalibrationStore store;  // CalibrationKvs (guide 11)
+    CalibrationStore store;  // CalibrationKvs (guide 11, Section 6.7)
     CalibrationService calibration{calibSpec.Value(), store};
     if (!calibration.OfferService().HasValue()) { return EXIT_FAILURE; }
     client.Value().ReportExecutionState(ara::exec::ExecutionState::kRunning);  // CalibrationCheck may start
@@ -3236,7 +3236,7 @@ static int Run() {
         objectsSpec.Value());
     if (!search.HasValue()) { return EXIT_FAILURE; }
 
-    RecordingFile file;  // Recordings (guide 11)
+    RecordingFile file;  // Recordings (guide 11, Section 7.9)
     while (!stop) {
         recorder.Flush(file);
         file.WaitShortly();  // for example 100 ms
@@ -3356,7 +3356,7 @@ sequenceDiagram
 | 6 | `Storage` finds `ObjectListService` | Creates the proxy, registers receive handlers, subscribes to `FusionMode` and `ObjectList` | [15.13](#1513-complete-example-storage) |
 | 7 | Driving | Every 50 ms, `Fusion` polls images and status and sends an object list with `Allocate` and `Send`; `Storage`'s handler queues the lists | [7.8](#78-worked-example-images-for-fusion-object-lists-for-storage) |
 | 8 | Dusk | `Fusion` calls `SetExposureMode(Night)` and polls the future; the camera does not support it, so `Fusion` keeps `Auto` | [8.9](#89-worked-example-setexposuremode-from-fusion-to-cameradriver) |
-| 9 | Workshop recalibrates the camera (guide 12a) | `CameraDriver` calls `SetCalibration`; `Storage` writes the key and sends `CalibrationUpdated`; `Fusion` sees the trigger and re-reads the calibration | [7.7](#77-triggers), [13.5](#135-worked-example-calibrationdataservice-over-local-ipc) |
+| 9 | Workshop recalibrates the camera ([guide 12a](12a_Diagnostics.md#114-worked-example-calibratecamera)) | `CameraDriver` calls `SetCalibration`; `Storage` writes the key and sends `CalibrationUpdated`; `Fusion` sees the trigger and re-reads the calibration | [7.7](#77-triggers), [13.5](#135-worked-example-calibrationdataservice-over-local-ipc) |
 | 10 | `CameraDriver` crashes and is restarted by Execution Management | `Fusion`'s subscription goes to `kSubscriptionPending`; method calls fail with `kServiceNotAvailable`; after the new offer, the proxy reconnects and re-subscribes by itself | [6.6](#66-when-the-service-goes-away) |
 | 11 | A supervision of `Fusion` fails; `ADAS` goes to `Degraded` (guides 05, 06) | `Fusion` is stopped: its skeleton destructor stops the offer; `FusionLite` offers the same `ObjectListService` instance with `FusionMode` `RadarOnly`; `Storage`'s proxy reconnects and receives the new initial value | [9.6](#96-worked-example-camerastatus-and-fusionmode) |
 | 12 | The vehicle is switched off | Applications stop their offers and release their samples; the daemon stays until State Management has finished `MachineFG.Shutdown` | [3.4](#34-lifecycle-of-communication-management) |
