@@ -10,7 +10,7 @@
 >
 > **Version:** 1.0 (draft, pending review)
 >
-> **Part of the series:** [AUTOSAR Adaptive Platform Training Guides](00_LearningPath.md). Previous: [11 Persistency](11_Persistency.md). Next: 12b Diagnostics Part 2 (`12b_Diagnostics.md`, planned).
+> **Part of the series:** [AUTOSAR Adaptive Platform Training Guides](00_LearningPath.md). Previous: [11 Persistency](11_Persistency.md). Next: [12b Diagnostics Part 2](12b_Diagnostics.md).
 
 ## About This Guide
 
@@ -237,8 +237,8 @@ DM consists of two building blocks (SWS, Chapter 7):
 
 | Building block | Responsibility | Covered in |
 | --- | --- | --- |
-| Diagnostic Communication Management | Receives, checks, dispatches and answers diagnostic requests (UDS and SOVD) | This guide (UDS); guide 12b (SOVD) |
-| Diagnostic Event Management | Collects diagnostic events from monitors, computes DTC status and keeps the event memory | Guide 12b |
+| Diagnostic Communication Management | Receives, checks, dispatches and answers diagnostic requests (UDS and SOVD) | This guide (UDS); [guide 12b](12b_Diagnostics.md#12-sovd-concepts-and-server-setup) (SOVD) |
+| Diagnostic Event Management | Collects diagnostic events from monitors, computes DTC status and keeps the event memory | [Guide 12b](12b_Diagnostics.md#1-introduction-to-fault-memory-and-sovd) |
 
 ### 1.2 What DM Does Not Do
 
@@ -402,7 +402,7 @@ DM provides no interfaces to other functional clusters (SWS, Table 5.1). To appl
 | Control the ECU | `EcuResetRequest`, `CommunicationControl` |
 | Observe and filter | `Conversation`, `ServiceValidation` |
 | Support DoIP | `DoIPPowerMode`, `DoIPEntityIdentification`, `DoIPGroupIdentification`, `DoIPActivationLine`, `DoIPTriggerVehicleAnnouncement` |
-| Fault memory, data transfer, SOVD | guide 12b |
+| Fault memory, data transfer, SOVD | [guide 12b](12b_Diagnostics.md) |
 
 ### 3.3 Interfaces Required by DM
 
@@ -444,7 +444,7 @@ SOVD (Service-Oriented Vehicle Diagnostics, ASAM) offers diagnostic functions as
 > - DM has a transport layer (handlers, manager) and per-contribution-set Diagnostic Server instances.
 > - Applications provide data and functions through `ara::diag`; only mapped processes may do so.
 > - DM depends on Persistency, Cryptography, IdsM, Log and Trace, EM and PHM.
-> - SOVD shares the servers with UDS; it is covered in guide 12b.
+> - SOVD shares the servers with UDS; it is covered in [guide 12b](12b_Diagnostics.md#12-sovd-concepts-and-server-setup).
 
 ---
 
@@ -1362,7 +1362,7 @@ The startup procedure of DM is vendor-specific. At the latest when it is needed,
 
 > **Why this matters:** Many diagnostic integration problems are configuration problems: a DID without a service instance, a routine without a mapping, a missing access permission, a DoIP default that does not fit the tester. This chapter lists what DM reads, what each setting means and what happens at run time.
 
-The diagnostic configuration is part of the DEXT (CP TPS) and of the TPS Manifest. The tables give the attributes that diagnostic communication uses; fault-memory and SOVD attributes are in guide 12b. "Default" names a value only where the SWS specifies it; otherwise it says "not specified".
+The diagnostic configuration is part of the DEXT (CP TPS) and of the TPS Manifest. The tables give the attributes that diagnostic communication uses; fault-memory and SOVD attributes are in [guide 12b, Chapter 14](12b_Diagnostics.md#14-configuration-reference-what-to-configure). "Default" names a value only where the SWS specifies it; otherwise it says "not specified".
 
 ### 14.1 Minimal Configuration
 
@@ -1707,7 +1707,7 @@ Futures and promises are the `ara::core` types ([guide 03, Chapter 9](03_CoreAnd
 | `DiagUdsNrcErrorDomain` | `DiagUdsNrcErrc`: the ISO 14229-1 NRCs, for example `kGeneralReject` `0x10`, `kServiceNotSupported` `0x11`, `kSubFunctionNotSupported` `0x12`, `kIncorrectMessageLengthOrInvalidFormat` `0x13`, `kBusyRepeatRequest` `0x21`, `kConditionsNotCorrect` `0x22`, `kRequestSequenceError` `0x24`, `kRequestOutOfRange` `0x31`, `kSecurityAccessDenied` `0x33`, `kAuthenticationRequired` `0x34`, `kInvalidKey` `0x35`, `kRequestCorrectlyReceivedResponsePending` `0x78`, `kResourceTemporarilyNotAvailable` `0x94` | Negative responses from applications | [SWS_DM_00526], [SWS_DM_00536], [SWS_DM_00537] |
 | `DiagOfferErrorDomain` | `DiagOfferErrc`: `kAlreadyOffered` 101, `kConfigurationMismatch` 102, `kDebouncingConfigurationInconsistent` 103 | `Offer()` | [SWS_DM_00559] |
 | `DiagErrorDomain` | `DiagErrc`: 101 to 118, for example `kNotOffered` 106, `kBusy` 109, `kServiceNotAvailable` 118 | Other `ara::diag` calls | [SWS_DM_00514] |
-| `DiagReportingErrorDomain` | `DiagReportingErrc` | Event reporting (guide 12b) | [SWS_DM_00560] |
+| `DiagReportingErrorDomain` | `DiagReportingErrc` | Event reporting ([guide 12b](12b_Diagnostics.md#1511-error-codes)) | [SWS_DM_00560] |
 
 ### 15.9 The UDS Transport Layer Interface for Platform Developers
 
@@ -2142,7 +2142,7 @@ The error `kNoProcessingNoResponse` ([SWS_DM_00860]; [Section 7.4](#74-manufactu
 | Security level | A level unlocked with SecurityAccess `0x27` by seed and key. |
 | Session | A mode of the conversation that unlocks services, switched with `0x10`. |
 | SID | Service identifier, the first byte of a UDS request. |
-| SOVD | Service-Oriented Vehicle Diagnostics (ASAM); covered in guide 12b. |
+| SOVD | Service-Oriented Vehicle Diagnostics (ASAM); covered in [guide 12b](12b_Diagnostics.md#27-sovd-in-one-page). |
 | Transport Protocol Handler | A plug-in that implements a UDS transport protocol, such as DoIP. |
 | Transport Protocol Manager | The part of DM that dispatches messages between handlers and servers. |
 | UDS | Unified Diagnostic Services (ISO 14229-1). |
@@ -2156,7 +2156,7 @@ The error `kNoProcessingNoResponse` ([SWS_DM_00860]; [Section 7.4](#74-manufactu
 | --- | --- | --- | --- |
 | `0x10` | DiagnosticSessionControl | internal | 8.1 |
 | `0x11` | ECUReset | external (`EcuResetRequest`) | 12 |
-| `0x14`, `0x19` | ClearDiagnosticInformation, ReadDTCInformation | internal | 12b |
+| `0x14`, `0x19` | ClearDiagnosticInformation, ReadDTCInformation | internal | [12b](12b_Diagnostics.md#10-reading-clearing-and-controlling-the-fault-memory-over-uds) |
 | `0x22`, `0x2E` | Read / WriteDataByIdentifier | internal and external / external | 10 |
 | `0x27` | SecurityAccess | internal and external (`SecurityAccess`) | 8.2 |
 | `0x28` | CommunicationControl | external | 12.4 |
@@ -2164,9 +2164,9 @@ The error `kNoProcessingNoResponse` ([SWS_DM_00860]; [Section 7.4](#74-manufactu
 | `0x2A` | ReadDataByPeriodicIdentifier (scheduler type 1) | internal | 10.6 |
 | `0x2C` | DynamicallyDefineDataIdentifier (no defineByMemoryAddress) | internal | 10.6 |
 | `0x31` | RoutineControl | external | 11 |
-| `0x34` to `0x38` | Download, upload, transfer, file transfer | external | 12b, 13 |
+| `0x34` to `0x38` | Download, upload, transfer, file transfer | external | [12b](12b_Diagnostics.md#11-data-transfer-and-file-transfer), 13 |
 | `0x3E` | TesterPresent | internal | 8.1 |
-| `0x85`, `0x86` | ControlDTCSetting (ON/OFF), ResponseOnEvent | internal | 12b |
+| `0x85`, `0x86` | ControlDTCSetting (ON/OFF), ResponseOnEvent | internal | [12b](12b_Diagnostics.md#104-0x85-controldtcsetting) |
 | not supported | `0x23`, `0x24`, `0x2F`, `0x3D`, `0x83`, `0x84`, `0x87`, OBD | – | 1.2 |
 
 **NRCs produced by DM checks:** `0x10` pending limit; `0x11` service; `0x12` sub-function; `0x13` length or format; `0x21` busy or refused; `0x22` condition; `0x31` identifier; `0x33` security; `0x34` authentication; `0x35`, `0x36`, `0x37` security access attempts; `0x78` pending; `0x7E`, `0x7F` session; `0x94` provider not offered.
@@ -2232,4 +2232,4 @@ This summary is based on the history appendix of the specification (SWS, Appendi
 
 ---
 
-*End of the training guide. For normative details, always refer to `AUTOSAR_AP_SWS_Diagnostics` (R25-11) and to the specifications it references, in particular the Manifest Specification and the Diagnostic Extract Template. Part 2 (guide 12b) continues with diagnostic events, DTCs, data transfer and SOVD.*
+*End of the training guide. For normative details, always refer to `AUTOSAR_AP_SWS_Diagnostics` (R25-11) and to the specifications it references, in particular the Manifest Specification and the Diagnostic Extract Template. [Part 2 (guide 12b)](12b_Diagnostics.md) continues with diagnostic events, DTCs, data transfer and SOVD.*

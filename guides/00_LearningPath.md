@@ -204,7 +204,7 @@ Read the guides in the order of their numbers. Guides that are not yet published
 | 10 | [Log and Trace](10_LogAndTrace.md) | How do I log, and how do I read a DLT trace? | AP SWS Log and Trace, FO PRS Log and Trace Protocol, FO TPS Log And Trace Extract | Available |
 | 11 | [Persistency](11_Persistency.md) | How do I keep data across power cycles and updates? | AP SWS Persistency | Available |
 | 12a | [Diagnostics Part 1](12a_Diagnostics.md) | How does a diagnostic tester talk to the `HPC`? | AP SWS Diagnostics, CP TPS Diagnostic Extract Template | Available |
-| 12b | Diagnostics Part 2 (`12b_Diagnostics.md`) | How are faults detected, stored as DTCs and read out? | AP SWS Diagnostics | Planned |
+| 12b | [Diagnostics Part 2](12b_Diagnostics.md) | How are faults detected, stored as DTCs and read out, and how does SOVD work? | AP SWS Diagnostics, CP TPS Diagnostic Extract Template | Available |
 | 13 | Update and Configuration Management (`13_UpdateAndConfigManagement.md`) | How is software installed, updated and rolled back? | AP SWS Update and Configuration Management | Planned |
 | 14 | Cryptography (`14_Cryptography.md`) | How do I use keys, certificates and crypto primitives safely? | AP SWS Cryptography | Planned |
 | 15 | Identity and Access Management (`15_IdentityAndAccessManagement.md`) | Who may use which service or platform interface? | AP SWS Identity and Access Management | Planned |
@@ -755,8 +755,13 @@ On the Ethernet side, the PDUs use the **Signal-Based SOME/IP** binding with the
 | Routine `0x0201` `CalibrateCamera` | Started with the UDS service RoutineControl in the extended session at `Level1`; start and request results; about 3 s. Measures the camera position and stores it with `SetCalibration`. Typed interface `CalibrateCameraRoutine`, P-port `CalibrateCameraPort` of `CameraDriverSwc`. | `CameraDriver` | [12a](12a_Diagnostics.md#114-worked-example-calibratecamera) |
 | Routine `0x0202` `DegradeAdas` | Extended session, `Level1`, start only; requests `Degrade` (10) from `AdasAgent` | `SmControl` (port `DegradeAdasPort`) | [12a](12a_Diagnostics.md#127-worked-example-degradeadas), [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control) |
 | ECU reset | The UDS service ECUReset (`0x11`), hardReset and softReset, extended session and `Level1`, positive response before the reset. Diagnostic Management calls `ara::diag::EcuResetRequest`, which `SmControl` implements on `EcuResetPort`; `SmControl` requests `Reset` from `HpcController`, whose `Restart` state requests `MachineFG.Restart`. | Diagnostic Management, `SmControl`, `StateManager` | [05](05_StateManagement.md#112-diagnostics-ecu-reset-and-communication-control), [12a](12a_Diagnostics.md#126-worked-example-ecu-reset-through-smcontrol) |
-| Diagnostic event `CameraBlocked` | Reported by the diagnostic monitor in `CameraDriver` when the camera image stays dark or frozen | `CameraDriver` | 12b |
-| DTC `0x9A1011` | Stored when `CameraBlocked` fails; a snapshot record holds `VehicleSpeed` | Diagnostic Management | 12b |
+| Diagnostic event `CameraBlocked` | Reported by the diagnostic monitor in `CameraDriver` when the camera image stays dark or frozen: every 100 ms `kPrefailed` or `kPrepassed` on the R-port `CameraBlockedMonitorPort` of `CameraDriverSwc` (`DiagnosticMonitorInterface`). Counter-based debouncing `CameraBlockedDebounce`: step up 2, step down 1, thresholds 20 and −20, jump down to 0. | `CameraDriver` | [12b](12b_Diagnostics.md#59-worked-example-the-camerablocked-monitor) |
+| Operation cycle and conditions | Operation cycle `IgnitionCycle` (type `ignition`), restarted by `SmControl` when `PowerMode` becomes `On` (R-port `IgnitionCyclePort`). Enable condition `PowerModeOn` (group `CameraMonitoringConditions`, initial value false, R-port `PowerModeOnConditionPort`). Clear condition `VehicleStandstill` (group `ClearConditions`, below 0.5 km/h, R-port `StandstillClearConditionPort`). `SmControl` also reads the event memory (R-port `PrimaryMemoryPort`) and calls `EnableControlDtc` at the start of every drive. | `SmControl` | [12b](12b_Diagnostics.md#74-worked-example-smcontrol-owns-the-cycle-and-the-conditions) |
+| DTC `0x9A1011` | `CameraBlockedDtc` ("Front camera blocked"), mapped to `CameraBlocked`; ISO 14229-1 format, severity `checkAtNextHalt`, priority 2, significance `fault`, confirmation threshold 2 (pending in the first drive, confirmed in the next one with a failure); aging after 40 `IgnitionCycle`s; clear condition `VehicleStandstill` | Diagnostic Management | [12b](12b_Diagnostics.md#87-worked-example-two-drives-with-a-blocked-camera) |
+| Event memory `HpcPrimaryMemory` | Primary memory, 20 entries, displacement `full`, storage trigger `testFailed`, snapshot numbering `calculated` (at most 2 records for `0x9A1011`). Snapshot: DID `0x0102` `VehicleSpeed` (2 bytes, 0.01 km/h), provided by `SmControl` (P-port `VehicleSpeedDidPort`). Extended data: record `0x01` occurrence counter, `0x02` aging counter up, `0x03` maximum FDC since clear, all internal. | Diagnostic Management, `SmControl` | [12b](12b_Diagnostics.md#99-worked-example-the-entry-of-0x9a1011) |
+| Fault-memory services | `0x19` sub-functions `0x01`, `0x02`, `0x04`, `0x06`, `0x0A`, `0x14` and `0x14` ClearDiagnosticInformation in both sessions without security; `0x85` ControlDTCSetting in the extended session; no `0x86` | Diagnostic Management | [12b](12b_Diagnostics.md#10-reading-clearing-and-controlling-the-fault-memory-over-uds) |
+| File transfer | `0x38` ReadFile and ReadDir in the extended session at `Level1`: `Storage` provides `FileTransferService` on the P-port `RecordingsTransferPort` to read the files of `Recordings` | `Storage` | [12b](12b_Diagnostics.md#116-worked-example-reading-a-recording-from-storage) |
+| SOVD | SOVD server `HpcSovdServer` on `HPC` (component qualifier `hpc`, HTTPS with TLS); the Diagnostic Server of `HpcDiagnostics` is the sub-component `hpcdiag`; no SOVD gateway on `HPC`. `SmControl` provides `SovdAuthorization` and `SovdProximityChallenge`. SOVD data `CameraStatus` (category `CURRENT_DATA`) and the asynchronous operation `CameraCalibration` (proximity proof required) are provided by `CameraDriver`; faults are read and deleted through `DiagnosticSovdFaultMemoryAccess`. | Diagnostic Management, `CameraDriver`, `SmControl` | [12b](12b_Diagnostics.md#12-sovd-concepts-and-server-setup) |
 
 > **Pitfall:** `Fusion` runs only in `ADAS.Normal`. When `ADAS` is `Off` or `Degraded`, nobody provides `FusionSoftwareVersion`, and Diagnostic Management answers with the NRC `0x94` ([guide 12a, Section 10.7](12a_Diagnostics.md#107-worked-example-fusionsoftwareversion)).
 
@@ -852,7 +857,7 @@ Each guide tells one or more stories on the running example. Use this table to f
 | [10](10_LogAndTrace.md#18-end-to-end-walkthrough-a-dlt-trace-of-an-adas-transition) | Log IDs of `Fusion` and `CameraDriver`; `FusionCycleOverrun` from model to wire; a DLT trace of the `ADAS` transition from `Normal` to `Degraded` |
 | [11](11_Persistency.md) | `CalibrationKvs`, `Recordings` and `FusionParams`, including the migration on update |
 | [12a](12a_Diagnostics.md#17-end-to-end-walkthrough-a-workshop-visit) | The tester reads `FusionSoftwareVersion`, runs `CalibrateCamera` and requests an ECU reset |
-| 12b | `CameraBlocked` matures into a DTC with a snapshot; the tester reads and clears it |
+| [12b](12b_Diagnostics.md#17-end-to-end-walkthrough-a-blocked-camera-from-detection-to-repair) | `CameraBlocked` matures into a DTC with a snapshot; the tester reads and clears it over UDS and SOVD |
 | 13 | The update of `AdasCluster` from 1.0.0 to 1.1.0, with activation through `Verify` and a rollback |
 | 14 | `HpcDeviceCert` for TLS, `PackageVerificationKey` for updates, `CalibrationMacKey` for the MAC |
 | 15 | Access rights of `Fusion`, `CameraDriver` and `StateManager`; the denied `FusionLite` |
@@ -996,6 +1001,22 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 
 | Term | Meaning | Explained in |
 | --- | --- | --- |
+| Aging | Deleting an event memory entry after a configured number of operation cycles without failure. | [12b, 9.7](12b_Diagnostics.md#97-aging) |
+| Clear Condition | A condition that must be fulfilled for a DTC to be cleared; set by an application through `ara::diag::Condition`. AP only. | [12b, 7.3](12b_Diagnostics.md#73-clear-conditions-and-cleareventallowedbehavior) |
+| Confirmed DTC | A DTC whose status bit 3 is set, after the configured number of failed operation cycles (confirmation threshold). | [12b, 8.2](12b_Diagnostics.md#82-status-bit-processing) |
+| Debouncing | Filtering of diagnostic monitor reports until a result is qualified as failed or passed; counter-based, time-based or inside the monitor. | [12b, 6.1](12b_Diagnostics.md#61-why-debounce) |
+| Displacement | Replacing a less important event memory entry by a new one when the event memory is full. | [12b, 9.6](12b_Diagnostics.md#96-overflow-and-displacement) |
+| Enable Condition | A condition that must be fulfilled for the reports of a diagnostic event to count; set by an application through `ara::diag::Condition`. | [12b, 7.2](12b_Diagnostics.md#72-enable-conditions) |
+| Event Combination | Mapping several diagnostic events to one DTC, combined on storage or on retrieval. | [12b, 8.4](12b_Diagnostics.md#84-event-combination) |
+| Extended Data Record | A record of mostly statistical data stored with a DTC, such as the occurrence counter or the aging counter. | [12b, 9.4](12b_Diagnostics.md#94-extended-data-records) |
+| Fault Detection Counter (FDC) | The debouncing progress of a diagnostic event, from −128 (finally healed) to +127 (finally defective). | [12b, 2.3](12b_Diagnostics.md#23-debouncing-and-the-fault-detection-counter) |
+| Indicator (diagnostic) | A warning output, such as a lamp, linked to diagnostic events; drives status bit 7 of their DTCs. | [12b, 8.5](12b_Diagnostics.md#85-indicators-and-the-warningindicatorrequested-bit) |
+| Pending DTC | A DTC whose status bit 2 is set: it failed in the current or the last operation cycle. | [12b, 8.2](12b_Diagnostics.md#82-status-bit-processing) |
+| Proximity Challenge | An SOVD mechanism that proves that a person is physically at the vehicle before an operation runs. | [12b, 13.4](12b_Diagnostics.md#134-proximity-challenge) |
+| SOVD Gateway | The edge node that routes SOVD requests from clients to the SOVD servers in the vehicle. | [12b, 3.4](12b_Diagnostics.md#34-the-sovd-reference-architecture) |
+| SOVD Lock | Exclusive access of one SOVD client to an SOVD entity; excludes a UDS client in the extended session. | [12b, 12.5](12b_Diagnostics.md#125-locks-environmental-conditions-and-service-validation) |
+| SOVD Server | An SOVD endpoint in the vehicle. On the Adaptive Platform, Diagnostic Management is an SOVD server; each Diagnostic Server instance is a sub-component. | [12b, 12.1](12b_Diagnostics.md#121-sovd-entities-and-dms-place) |
+| UDS DTC Status Byte | The 8 status bits of a DTC defined by ISO 14229-1, such as test failed, pending and confirmed. | [12b, 2.2](12b_Diagnostics.md#22-event-status-and-the-uds-dtc-status-byte) |
 | `≪atpSplitable≫` | Stereotype of a property whose content may be spread over several files. | [02, 3.7](02_Manifests.md#37-many-files-one-model) |
 | `≪atpUriDef≫` | Stereotype of a reference whose path carries the information, even if the target is not on the Machine. | [02, 1.2](02_Manifests.md#12-design-models-and-target-configuration), [02, 9.4](02_Manifests.md#94-from-port-to-instancespecifier) |
 | Abnormal Termination | A process ended with an exit status other than `0`, for example after a crash. | [04, 2.5](04_ExecutionManagement.md#25-termination-events) |
@@ -1058,13 +1079,13 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Diagnostic Address | The address under which a diagnostic server is reached. A machine can have one for all Software Clusters or one per Software Cluster. | [12a, 2.3](12a_Diagnostics.md#23-diagnostic-server-instances-and-software-clusters) |
 | Diagnostic Contribution Set | `DiagnosticContributionSet`: the diagnostic configuration of one Diagnostic Server instance; Software Clusters reference it. | [12a, 2.3](12a_Diagnostics.md#23-diagnostic-server-instances-and-software-clusters) |
 | Diagnostic Conversation | The state of the exchange between one diagnostic tester and one Diagnostic Server instance (session, security level, ongoing request), allocated at run time. | [12a, 6](12a_Diagnostics.md#6-diagnostic-conversations) |
-| Diagnostic Event | The atomic unit of fault detection in Diagnostic Management. Its status reflects the latest result of a diagnostic monitor; one or more events make up a DTC. | 12b |
+| Diagnostic Event | The atomic unit of fault detection in Diagnostic Management. Its status reflects the latest result of a diagnostic monitor; one or more events make up a DTC. | [12b, 2.1](12b_Diagnostics.md#21-monitor-diagnostic-event-dtc) |
 | Diagnostic Extract (DEXT) | The AUTOSAR model of the diagnostic behavior of an ECU, shared by the Classic and the Adaptive Platform; the configuration input of Diagnostic Management. | [12a, 2.8](12a_Diagnostics.md#28-the-diagnostic-extract-dext-and-the-manifest) |
 | Diagnostic mapping | A model element that connects a DEXT element, such as a DID or routine, to a port of an executable and a process. | [12a, 14.11](12a_Diagnostics.md#1411-diagnostic-mappings-ports-and-processes) |
-| Diagnostic Monitor | The logic, usually in an application, that tests for a fault and reports the result to a diagnostic event. | 12b |
+| Diagnostic Monitor | The logic, usually in an application, that tests for a fault and reports the result to a diagnostic event. | [12b, 2.1](12b_Diagnostics.md#21-monitor-diagnostic-event-dtc) |
 | Diagnostic Server instance | One UDS server inside Diagnostic Management; there is one per Diagnostic Contribution Set. | [12a, 2.3](12a_Diagnostics.md#23-diagnostic-server-instances-and-software-clusters) |
 | Diagnostic Session | A mode of a Diagnostic Conversation that unlocks diagnostic services, switched with DiagnosticSessionControl (`0x10`). | [12a, 2.5](12a_Diagnostics.md#25-sessions-security-levels-and-access-permissions) |
-| Diagnostic Trouble Code (DTC) | A code that identifies a detected fault in the vehicle. Diagnostic Management stores it together with snapshot and extended data. | 12b |
+| Diagnostic Trouble Code (DTC) | A code that identifies a detected fault in the vehicle. Diagnostic Management stores it together with snapshot and extended data. | [12b, 8.1](12b_Diagnostics.md#81-dtc-format-and-groups) |
 | E2E Profile | A standardized combination of E2E mechanisms and header layout, for example `PROFILE_04`. | [08b, 10.2](08b_SecureAndSafeCommunication.md#102-profiles-available-on-the-adaptive-platform) |
 | E2E Protection | Safety mechanisms that detect corrupted, lost, repeated or delayed data between sender and receiver. An E2E profile defines the exact mechanism. | [08b](08b_SecureAndSafeCommunication.md#10-e2e-profiles-and-the-e2e-header) |
 | E2E State Machine | The function that turns the history of E2E checks into the states VALID, INVALID, INIT or NODATA, using windows and thresholds. | [08b, 11](08b_SecureAndSafeCommunication.md#11-the-e2e-state-machine) |
@@ -1077,7 +1098,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Error domain identifier | The unique 64-bit number that identifies an error domain | [03, 7.4](03_CoreAndGeneral.md#74-error-domain-identifiers) |
 | ErrorRecoveryTable | The rules of a StateMachine that map an error code to the StateMachine State to enter; it must contain an `ANY` entry. | [05, 2.4](05_StateManagement.md#24-transitionrequesttable-and-errorrecoverytable) |
 | Event (service element) | A message that a service provider sends to all subscribed consumers. | [07, 7](07_CommunicationManagement.md#7-events-and-triggers) |
-| Event Memory | The part of Diagnostic Management that stores DTCs and their data. | 12b |
+| Event Memory | The part of Diagnostic Management that stores DTCs and their data. | [12b, 9.1](12b_Diagnostics.md#91-primary-and-user-defined-memories) |
 | Eventgroup | On SOME/IP, a set of events and field notifiers that a client subscribes to together. | [08a](08a_NetworkBindings.md) |
 | Executable | A program file with exactly one `main()` function. | [04, 2.1](04_ExecutionManagement.md#21-software-units-from-application-to-os-process), [02, 5.3](02_Manifests.md#53-the-executable-and-its-root-prototype) |
 | Execution Budget | In the Classic OS, the statically configured maximum execution time of a task or interrupt handler, enforced by timing protection. | [01, 2.3.2](01_PlatformOverview.md#232-how-the-classic-platform-achieves-it) |
@@ -1173,7 +1194,7 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | NRC | Negative response code: the one-byte reason in a negative UDS response. | [12a, 2.1](12a_Diagnostics.md#21-uds-in-one-page) |
 | Off (state) | The mandatory initial state of every Function Group. No processes run in it. | [04, 7.2](04_ExecutionManagement.md#72-function-groups-and-function-group-states) |
 | Operating System Interface | The part of ARA that defines the operating system services available to Adaptive Applications (PSE51 and the C++ standard library), and the requirements on the operating system. | [01, 7](01_PlatformOverview.md#7-the-operating-system-interface) |
-| Operation Cycle | A period, such as one drive cycle, that Diagnostic Management uses to evaluate and age DTCs. | 12b |
+| Operation Cycle | A period, such as one drive cycle, that Diagnostic Management uses to evaluate and age DTCs. | [12b, 7.1](12b_Diagnostics.md#71-operation-cycles) |
 | OSEK OS | The event-triggered automotive operating system with fixed priority-based scheduling, standardized as ISO 17356-3, on which the Classic OS is based. | [01, 2.2](01_PlatformOverview.md#22-why-the-classic-design-fits-its-problem) |
 | OTA Client | An Adaptive Application that connects the vehicle's update management to the backend. | 13 |
 | P2, P2* | Server response times of a diagnostic session: until the first response, and between response-pending messages. | [12a, 7.6](12a_Diagnostics.md#76-response-pending-p2-and-p2-and-the-pending-limit) |
@@ -1254,13 +1275,13 @@ This appendix is the glossary of the whole series. Each guide's own glossary use
 | Signal-to-Service Translation | The standardized mapping between signal-based communication and service-oriented communication, in both directions. | [08a](08a_NetworkBindings.md) |
 | Skeleton (Service Skeleton) | The generated base class from which a provider implements a service and connects it to Communication Management. | [07, 2.2](07_CommunicationManagement.md#22-skeleton-and-proxy) |
 | SMControlApplication | The project-specific application that decides which StateMachine transitions to request; it also decides whether an update is allowed. | [05, 2.6](05_StateManagement.md#26-smcontrolapplication) |
-| Snapshot Record | Environmental data, such as the vehicle speed, that Diagnostic Management stores when a DTC occurs. | 12b |
+| Snapshot Record | Environmental data, such as the vehicle speed, that Diagnostic Management stores when a DTC occurs. | [12b, 9.3](12b_Diagnostics.md#93-snapshot-records) |
 | Software Cluster | The unit of deployment and update: a set of executables, manifests and data, which claims Function Groups. It is installed as one Software Package. The meta-class is `SoftwareCluster`. | [00, 6.3](#63-the-hpc-machine), [02, 10.2](02_Manifests.md#102-software-cluster-the-uploadable-unit), 13 |
 | Software Cluster Design | The OEM's design-level contract for a Software Cluster (meta-class `SoftwareClusterDesign`). | [02, 10.1](02_Manifests.md#101-software-cluster-design-the-oems-contract) |
 | Software Package | The unit that UCM installs: one Software Cluster plus the metadata to install it. It is digitally signed. | 13, [02, 10.3](02_Manifests.md#103-software-package-and-vehicle-package) |
 | SOME/IP | An AUTOSAR protocol for service-oriented communication over IP, with its own service discovery (SOME/IP-SD). | [08a](08a_NetworkBindings.md) |
 | SOME/IP-TP | The segmentation of large SOME/IP messages over UDP. | [08a](08a_NetworkBindings.md) |
-| SOVD | Service-Oriented Vehicle Diagnostics, an ASAM standard for diagnostics over web technologies. | 12b |
+| SOVD | Service-Oriented Vehicle Diagnostics, an ASAM standard for diagnostics over web technologies. | [12b, 2.7](12b_Diagnostics.md#27-sovd-in-one-page) |
 | Stack | An implementation of the Adaptive Platform standard by a platform vendor. | [01, 1.3](01_PlatformOverview.md#13-what-the-standard-defines-and-what-it-leaves-open) |
 | Standardized M1 model | Model content published by AUTOSAR in the top-level package `AUTOSAR`, for example `/AUTOSAR/StdTypes`. | [02, 2.1](02_Manifests.md#21-meta-levels-meta-model-model-and-xml-schema) |
 | Standardized Violation | A Violation defined by AUTOSAR, with a standardized DLT message | [03, 6.3](03_CoreAndGeneral.md#63-violations-fail-early) |
@@ -1363,7 +1384,7 @@ All values are illustrative. [Chapter 6](#6-the-running-example-the-hpc-referenc
 | --- | --- |
 | Persistency | `Storage`: `CalibrationKvs` (`CameraExtrinsics`, `RadarAlignment`; port `CalibrationKvsPort`; 2 out of 3, MAC), `Recordings` (`RecordingsPort`; at most 64 files). `Fusion`: `FusionParams` (`TrackerTuning`, `TrackerTuningV1` → `TrackerTuningV2`; port `FusionParamsPort`; CRC per element) |
 | Error domains | `CameraErrors` `0x1001` (`ExposureModeNotSupported` 1); `AdasExecutionErrors` `0x1002` (`FusionFailed` 42, `AdasStateTimeout` 60, `AdasTransitionRequestFailed` 61); `FusionErrors` `0x1003`, hand-written in `Fusion` (`kInputTimeout` 1, `kCalibrationImplausible` 2) |
-| Diagnostics | DID `0x0101` `FusionSoftwareVersion`; routine `0x0201` `CalibrateCamera`; ECU reset (`0x11`); event `CameraBlocked` → DTC `0x9A1011`, snapshot `VehicleSpeed` |
+| Diagnostics | DID `0x0101` `FusionSoftwareVersion`; routine `0x0201` `CalibrateCamera`; ECU reset (`0x11`); event `CameraBlocked` → DTC `0x9A1011` in `HpcPrimaryMemory`, snapshot DID `0x0102` `VehicleSpeed`, cycle `IgnitionCycle`, conditions `PowerModeOn` and `VehicleStandstill`; `0x38` file transfer from `Storage`; SOVD server `HpcSovdServer` with `CameraStatus` and `CameraCalibration` |
 | Update | `AdasCluster` 1.0.0 → 1.1.0 (`fusion` 1.1.0, migration of `FusionParams`); activation through `ADAS.Verify`; rollback to 1.0.0. Vendor IDs `0x1111` (`HpcPlatformCore`) and `0x1234` (`AdasCluster`) |
 
 ### B.5 Security, Safety, Time and Logging

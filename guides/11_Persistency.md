@@ -2423,7 +2423,7 @@ Before the process is aborted for a violation, Persistency logs one of three mes
 
 ### 16.3 Production Errors
 
-Persistency defines three diagnostic events (SWS, Section 7.6.4; DRAFT). Guide 12b explains how diagnostic events become DTCs.
+Persistency defines three diagnostic events (SWS, Section 7.6.4; DRAFT). [Guide 12b](12b_Diagnostics.md#2-core-concepts-and-terminology) explains how diagnostic events become DTCs.
 
 | Event | Failed when | Passed when | Spec |
 | --- | --- | --- | --- |

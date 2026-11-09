@@ -956,7 +956,7 @@ Applications also use ports to reach functional clusters. For this purpose the T
 | `PhmSupervisedEntityInterface` | Supervision checkpoints of a process | 4.8 | 06 |
 | `LogAndTraceInterface` | Modeled log messages | 4.13 | 10 |
 | `PersistencyKeyValueStorageInterface`, `PersistencyFileStorageInterface` | Key-value storages and file storages | 4.6 | [11](11_Persistency.md#142-persistencyinterface-and-its-subclasses) |
-| `DiagnosticDataIdentifierInterface`, `DiagnosticRoutineInterface`, `DiagnosticMonitorInterface` and others | Diagnostic data, routines and events | 4.9 | [12a](12a_Diagnostics.md#1410-diagnostic-port-interfaces), 12b |
+| `DiagnosticDataIdentifierInterface`, `DiagnosticRoutineInterface`, `DiagnosticMonitorInterface` and others | Diagnostic data, routines and events | 4.9 | [12a](12a_Diagnostics.md#1410-diagnostic-port-interfaces), [12b](12b_Diagnostics.md#31-fault-memory-classes-and-their-port-interfaces) |
 | `CryptoKeySlotInterface`, `CryptoCertificateInterface`, `CryptoProviderInterface` | Access to keys, certificates and crypto providers | 4.10 | 14 |
 | `SecurityEventReportInterface` | Reporting of security events | 4.12 | 16 |
 | `FirewallStateSwitchInterface` | Switching firewall states | 4.14 | 16 |

@@ -32,7 +32,7 @@ Start with guide 00. It suggests shorter reading paths for specific roles, holds
 | 10 | [Log and Trace](guides/10_LogAndTrace.md) | In review |
 | 11 | [Persistency](guides/11_Persistency.md) | In review |
 | 12a | [Diagnostics Part 1](guides/12a_Diagnostics.md) | In review |
-| 12b | Diagnostics Part 2 | Planned |
+| 12b | [Diagnostics Part 2](guides/12b_Diagnostics.md) | In review |
 | 13 | Update and Configuration Management | Planned |
 | 14 | Cryptography | Planned |
 | 15 | Identity and Access Management | Planned |
