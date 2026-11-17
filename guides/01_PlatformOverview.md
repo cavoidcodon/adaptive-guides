@@ -994,7 +994,7 @@ sequenceDiagram
     PH->>WD: serve, before the timeout expires
     D->>EM: ReportExecutionState(kRunning)
     SMG->>EM: GetInitialMachineStateTransitionResult()
-    Note over SMG: State Management takes over;<br/>SmControl requests the transition Drive
+    Note over SMG: State Management takes over.<br/>SmControl requests the transition Drive
     SMG->>EM: SetState(MachineFG.Driving), then SetState(ADAS.Normal)
     EM->>A: start in dependency order
     A->>EM: ReportExecutionState(kRunning)
